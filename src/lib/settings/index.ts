@@ -1,7 +1,7 @@
 import type { TariffConfig } from "@/lib/calc/types";
 import { DEFAULT_CONFIG } from "@/lib/default-config";
 import { StorageService } from "@/lib/storage-service";
-import type { AppSettings } from "@/lib/settings/types";
+import type { AppSettings, SemesterCycleSettings } from "@/lib/settings/types";
 
 const DEFAULTS: AppSettings = {
   gmail: {
@@ -21,6 +21,18 @@ const DEFAULTS: AppSettings = {
     inboxDir: "./data/inbox",
   },
   tariffs: DEFAULT_CONFIG,
+  semesters: {
+    // Winter: Oct 1 – Mar 31
+    winterStartDay: 1,
+    winterStartMonth: 10,
+    winterEndDay: 31,
+    winterEndMonth: 3,
+    // Summer: Apr 1 – Sep 30
+    summerStartDay: 1,
+    summerStartMonth: 4,
+    summerEndDay: 30,
+    summerEndMonth: 9,
+  },
   advanced: {
     syncLogRetention: 100,
   },
@@ -80,6 +92,30 @@ export async function loadSettings(): Promise<AppSettings> {
 
   s.tariffs = { ...s.tariffs, ...((await storage.getTariffConfig()) ?? {}) };
 
+  const loadSem = async (
+    prefix: string,
+    def: SemesterCycleSettings,
+  ): Promise<SemesterCycleSettings> => ({
+    ...def,
+    winterStartDay:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.winterStartDay`)) ?? def.winterStartDay,
+    winterStartMonth:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.winterStartMonth`)) ?? def.winterStartMonth,
+    winterEndDay:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.winterEndDay`)) ?? def.winterEndDay,
+    winterEndMonth:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.winterEndMonth`)) ?? def.winterEndMonth,
+    summerStartDay:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.summerStartDay`)) ?? def.summerStartDay,
+    summerStartMonth:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.summerStartMonth`)) ?? def.summerStartMonth,
+    summerEndDay:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.summerEndDay`)) ?? def.summerEndDay,
+    summerEndMonth:
+      num(await storage.getSetting(`${KEY_PREFIX}${prefix}.summerEndMonth`)) ?? def.summerEndMonth,
+  });
+  s.semesters = await loadSem("semesters", s.semesters);
+
   s.advanced = {
     ...s.advanced,
     syncLogRetention:
@@ -126,6 +162,22 @@ export async function saveSettings(
 
   if (patch.tariffs) {
     await storage.setTariffConfig(patch.tariffs as Partial<TariffConfig>);
+  }
+
+  if (patch.semesters) {
+    const sm = patch.semesters;
+    const setSem = (key: string, value?: number) => {
+      if (value === undefined) return;
+      set(`${KEY_PREFIX}semesters.${key}`, value);
+    };
+    setSem("winterStartDay", sm.winterStartDay);
+    setSem("winterStartMonth", sm.winterStartMonth);
+    setSem("winterEndDay", sm.winterEndDay);
+    setSem("winterEndMonth", sm.winterEndMonth);
+    setSem("summerStartDay", sm.summerStartDay);
+    setSem("summerStartMonth", sm.summerStartMonth);
+    setSem("summerEndDay", sm.summerEndDay);
+    setSem("summerEndMonth", sm.summerEndMonth);
   }
 
   if (patch.advanced) {

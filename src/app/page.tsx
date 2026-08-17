@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 
@@ -8,20 +8,43 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Input } from "@/components/ui/Input";
 import { Stat } from "@/components/ui/Stat";
 import { useReadings } from "@/hooks/useReadings";
+import { useSettings } from "@/hooks/useSettings";
 import { useSplit } from "@/hooks/useSplit";
+import { groupReadings, type GroupBy } from "@/lib/calc/groupReadings";
 import { formatDate, formatEur, formatKwh, formatPct } from "@/utils/format";
 
 export default function Home() {
-  const { result, loading, error, calculate } = useSplit();
+  const { result, loading: splitLoading, error: splitError, calculate } = useSplit();
   const readings = useReadings();
+  const { settings } = useSettings();
+
+  const [groupBy, setGroupBy] = useState<GroupBy>("month");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   useEffect(() => {
-    if (result === null && !loading && !error) {
+    if (result === null && !splitLoading && !splitError) {
       void calculate();
     }
-  }, [result, loading, error, calculate]);
+  }, [result, splitLoading, splitError, calculate]);
+
+  // Filtered readings (by period start).
+  const filtered = useMemo(() => {
+    return readings.readings.filter((r) => {
+      if (from && r.periodStart < from) return false;
+      if (to && r.periodStart > to) return false;
+      return true;
+    });
+  }, [readings.readings, from, to]);
+
+  // Grouped totals.
+  const groups = useMemo(() => {
+    const cycle = settings?.semesters;
+    return groupReadings(filtered, groupBy, cycle);
+  }, [filtered, groupBy, settings?.semesters]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +56,7 @@ export default function Home() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/readings">
+          <Link href="/readings/new">
             <Button variant="outline">Add reading</Button>
           </Link>
           <Link href="/split">
@@ -109,6 +132,75 @@ export default function Home() {
         )}
       </Card>
 
+      {/* Usage breakdown: filters + grouping */}
+      <Card>
+        <CardHeader
+          title="Usage"
+          subtitle="Filter and group readings by period, month, year or semester."
+        />
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Period from</label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Period to</label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted-foreground">Group by</label>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupBy)}
+              className="h-10 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+              <option value="semester">Semester</option>
+            </select>
+          </div>
+        </div>
+
+        {readings.loading ? (
+          <p className="text-muted-foreground">Loading…</p>
+        ) : groups.length === 0 ? (
+          <p className="text-muted-foreground">
+            No readings in the selected range.{" "}
+            <Link href="/readings/new" className="text-primary underline">
+              Add a reading
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  <th className="py-2 pr-4">Group</th>
+                  <th className="py-2 pr-4">Readings</th>
+                  <th className="py-2 pr-4">HEP kWh</th>
+                  <th className="py-2 pr-4">Upper kWh</th>
+                  <th className="py-2 pr-4">HEP amount</th>
+                  <th className="py-2">Upper split</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((g) => (
+                  <tr key={g.key} className="border-b border-border last:border-0">
+                    <td className="py-2 pr-4 font-medium">{g.label}</td>
+                    <td className="py-2 pr-4">{g.count}</td>
+                    <td className="py-2 pr-4">{formatKwh(g.hepVtKwh + g.hepNtKwh)}</td>
+                    <td className="py-2 pr-4">{formatKwh(g.upperVtKwh + g.upperNtKwh)}</td>
+                    <td className="py-2 pr-4">{formatEur(g.hepTotal)}</td>
+                    <td className="py-2">{formatEur(g.upperCost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
       {/* Recent readings */}
       <Card>
         <CardHeader title="Recent readings" />
@@ -117,7 +209,7 @@ export default function Home() {
         ) : readings.readings.length === 0 ? (
           <p className="text-muted-foreground">
             No readings yet.{" "}
-            <Link href="/readings" className="text-primary underline">
+            <Link href="/readings/new" className="text-primary underline">
               Add your first month
             </Link>
             .

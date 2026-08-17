@@ -11,13 +11,14 @@ import { useSettings } from "@/hooks/useSettings";
 import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
 
-type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "advanced";
+type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "semesters" | "advanced";
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "gmail", label: "Gmail" },
   { id: "hepSync", label: "HEP sync" },
   { id: "storage", label: "Storage / PDF" },
   { id: "tariffs", label: "Tariffs" },
+  { id: "semesters", label: "Semesters" },
   { id: "advanced", label: "Advanced" },
 ];
 
@@ -271,6 +272,22 @@ export default function SettingsPage() {
         />
       )}
 
+      {active === "semesters" && (
+        <SemesterTab
+          semesters={current.semesters}
+          saving={saving}
+          onChange={(patch) =>
+            patchDraft((d) => ({
+              ...d,
+              semesters: { ...d.semesters, ...patch },
+            }))
+          }
+          onSave={() =>
+            void persist({ semesters: current.semesters } as Partial<AppSettings>)
+          }
+        />
+      )}
+
       {active === "advanced" && (
         <Card>
           <CardHeader title="Advanced" subtitle="Lower-level knobs." />
@@ -377,6 +394,67 @@ function TariffTab({
           loading={saving}
         >
           Save tariffs
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function SemesterTab({
+  semesters,
+  saving,
+  onChange,
+  onSave,
+}: {
+  semesters: AppSettings["semesters"];
+  saving: boolean;
+  onChange: (patch: Partial<AppSettings["semesters"]>) => void;
+  onSave: () => void;
+}) {
+  const field = (
+    key: keyof AppSettings["semesters"],
+    label: string,
+    min = 1,
+    max = 31,
+  ) => (
+    <Field
+      label={label}
+      value={String(semesters[key])}
+      type="number"
+      min={min}
+      max={max}
+      onChange={(v) => onChange({ [key]: Number(v) } as Partial<AppSettings["semesters"]>)}
+    />
+  );
+  return (
+    <Card>
+      <CardHeader
+        title="Semester cycle"
+        subtitle="Define when each 6-month HEP tariff cycle runs. Defaults: Winter Oct 1 – Mar 31, Summer Apr 1 – Sep 30."
+      />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+          <h3 className="text-sm font-semibold">Winter cycle</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {field("winterStartDay", "Start day")}
+            {field("winterStartMonth", "Start month", 1, 12)}
+            {field("winterEndDay", "End day")}
+            {field("winterEndMonth", "End month", 1, 12)}
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+          <h3 className="text-sm font-semibold">Summer cycle</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {field("summerStartDay", "Start day")}
+            {field("summerStartMonth", "Start month", 1, 12)}
+            {field("summerEndDay", "End day")}
+            {field("summerEndMonth", "End month", 1, 12)}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4">
+        <Button onClick={onSave} loading={saving}>
+          Save semester cycle
         </Button>
       </div>
     </Card>

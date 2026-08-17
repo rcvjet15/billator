@@ -48,6 +48,7 @@ export async function PUT(req: NextRequest) {
   const hepSync = (b.hepSync || {}) as Record<string, unknown>;
   const storage = (b.storage || {}) as Record<string, unknown>;
   const tariffs = (b.tariffs || {}) as Record<string, unknown>;
+  const semesters = (b.semesters || {}) as Record<string, unknown>;
   const advanced = (b.advanced || {}) as Record<string, unknown>;
 
   try {
@@ -112,6 +113,26 @@ export async function PUT(req: NextRequest) {
     const ret = toNumber(advanced.syncLogRetention);
     if (ret !== undefined) advPatch.syncLogRetention = ret;
     await saveSettings({ advanced: advPatch } as Partial<AppSettings>);
+
+    // Semesters (cycle boundaries)
+    const semPatch: Partial<AppSettings["semesters"]> = {};
+    const semKeys: (keyof AppSettings["semesters"])[] = [
+      "winterStartDay",
+      "winterStartMonth",
+      "winterEndDay",
+      "winterEndMonth",
+      "summerStartDay",
+      "summerStartMonth",
+      "summerEndDay",
+      "summerEndMonth",
+    ];
+    for (const k of semKeys) {
+      const v = toNumber(semesters[k]);
+      if (v !== undefined) (semPatch as Record<string, number>)[k] = v;
+    }
+    if (Object.keys(semPatch).length > 0) {
+      await saveSettings({ semesters: semPatch } as Partial<AppSettings>);
+    }
 
     // Re-resolve and return with masked secrets.
     const fresh = await loadSettings();

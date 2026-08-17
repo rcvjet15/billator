@@ -10,6 +10,7 @@ export function Field({
   hint,
   placeholder,
   min,
+  max,
   step,
 }: {
   label: string;
@@ -19,6 +20,7 @@ export function Field({
   hint?: string;
   placeholder?: string;
   min?: number;
+  max?: number;
   step?: string;
 }) {
   return (
@@ -30,6 +32,7 @@ export function Field({
           value={value as string}
           placeholder={placeholder}
           min={min}
+          max={max}
           step={step}
           onChange={(e) => onChange(e.target.value)}
         />

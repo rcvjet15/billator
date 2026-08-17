@@ -6,7 +6,22 @@ export interface AppSettings {
   hepSync: HepSyncSettings;
   storage: StorageSettings;
   tariffs: TariffConfig;
+  semesters: SemesterCycleSettings;
   advanced: AdvancedSettings;
+}
+
+/** When each 6-month tariff cycle starts/ends (month/day, 1-based). */
+export interface SemesterCycleSettings {
+  /** Winter cycle: start (e.g. Oct 1) and end (e.g. Mar 31). */
+  winterStartDay: number;
+  winterStartMonth: number;
+  winterEndDay: number;
+  winterEndMonth: number;
+  /** Summer cycle: start (e.g. Apr 1) and end (e.g. Sep 30). */
+  summerStartDay: number;
+  summerStartMonth: number;
+  summerEndDay: number;
+  summerEndMonth: number;
 }
 
 export interface GmailSettings {
