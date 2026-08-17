@@ -7,6 +7,7 @@ import { ReadingList } from "@/components/readings/ReadingList";
 import { Card } from "@/components/ui/Card";
 import { Button, Spinner } from "@/components/ui/Button";
 import { useReadings } from "@/hooks/useReadings";
+import { formatDate } from "@/utils/format";
 import type { Reading, ReadingInput } from "@/lib/calc/types";
 
 export default function ReadingsPage() {
@@ -42,7 +43,7 @@ export default function ReadingsPage() {
         />
         {editing && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Editing {editing.periodStart} → {editing.periodEnd}. Only the fields
+            Editing {formatDate(editing.periodStart)} → {formatDate(editing.periodEnd)}. Only the fields
             you change are updated; the other part stays as-is.
           </p>
         )}

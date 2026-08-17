@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import type { Reading } from "@/lib/calc/types";
-import { formatEur, formatKwh } from "@/utils/format";
+import { formatDate, formatEur, formatKwh } from "@/utils/format";
 
 export function ReadingRow({
   reading,
@@ -19,7 +19,7 @@ export function ReadingRow({
       <div>
         <div className="flex items-center gap-2">
           <p className="font-medium">
-            {reading.periodStart} → {reading.periodEnd}
+            {formatDate(reading.periodStart)} → {formatDate(reading.periodEnd)}
           </p>
           {complete ? (
             <Badge tone="success">complete</Badge>
