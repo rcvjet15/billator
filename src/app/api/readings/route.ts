@@ -3,59 +3,42 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ReadingInput } from "@/lib/calc/types";
 import { StorageService } from "@/lib/storage-service";
 
-function parseNumber(v: unknown): number | null {
-  const n = typeof v === "string" ? Number(v) : v;
-  return typeof n === "number" && Number.isFinite(n) ? n : null;
-}
-
 function validateInput(body: unknown): { input: ReadingInput } | { error: string } {
   if (!body || typeof body !== "object") {
     return { error: "Invalid request body." };
   }
   const b = body as Record<string, unknown>;
 
-  const hepVtKwh = parseNumber(b.hepVtKwh);
-  const hepNtKwh = parseNumber(b.hepNtKwh);
-  const hepTotalSupply = parseNumber(b.hepTotalSupply);
-  const hepFees = parseNumber(b.hepFees);
-  const hepGrandTotal = parseNumber(b.hepGrandTotal);
-  const upperVtKwh = parseNumber(b.upperVtKwh);
-  const upperNtKwh = parseNumber(b.upperNtKwh);
-
   if (typeof b.periodStart !== "string" || typeof b.periodEnd !== "string") {
     return { error: "periodStart and periodEnd must be strings." };
   }
-  for (const n of [
-    hepVtKwh,
-    hepNtKwh,
-    hepTotalSupply,
-    hepFees,
-    hepGrandTotal,
-    upperVtKwh,
-    upperNtKwh,
-  ]) {
-    if (n === null || n < 0) {
-      return { error: "All kWh and amount fields must be non-negative numbers." };
-    }
-  }
 
-  return {
-    input: {
-      periodStart: b.periodStart,
-      periodEnd: b.periodEnd,
-      hepVtKwh: hepVtKwh as number,
-      hepNtKwh: hepNtKwh as number,
-      hepTotalSupply: hepTotalSupply as number,
-      hepFees: hepFees as number,
-      hepGrandTotal: hepGrandTotal as number,
-      upperVtKwh: upperVtKwh as number,
-      upperNtKwh: upperNtKwh as number,
-      ...(typeof b.sourcePdfId === "string" ? { sourcePdfId: b.sourcePdfId } : {}),
-      ...(typeof b.sourcePdfName === "string"
-        ? { sourcePdfName: b.sourcePdfName }
-        : {}),
-    },
+  const names = [
+    "hepVtKwh",
+    "hepNtKwh",
+    "hepTotalSupply",
+    "hepFees",
+    "hepGrandTotal",
+    "upperVtKwh",
+    "upperNtKwh",
+  ] as const;
+  const input: ReadingInput = {
+    periodStart: b.periodStart as string,
+    periodEnd: b.periodEnd as string,
   };
+  for (const name of names) {
+    const v = b[name];
+    if (v === undefined || v === null || v === "") continue;
+    const n = typeof v === "string" ? Number(v) : v;
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) {
+      return { error: `${name} must be a non-negative number.` };
+    }
+    input[name] = n;
+  }
+  if (typeof b.sourcePdfId === "string") input.sourcePdfId = b.sourcePdfId;
+  if (typeof b.sourcePdfName === "string") input.sourcePdfName = b.sourcePdfName;
+
+  return { input };
 }
 
 export async function GET() {

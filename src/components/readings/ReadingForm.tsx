@@ -11,6 +11,9 @@ import type { ReadingInput, InboxPdf } from "@/lib/calc/types";
 
 interface ReadingFormProps {
   onSubmit: (input: ReadingInput) => Promise<unknown>;
+  /** When provided, this form edits/continues an existing reading. */
+  initial?: { id: string } & ReadingInput;
+  onUpdate?: (id: string, input: Partial<ReadingInput>) => Promise<unknown>;
 }
 
 const empty: ReadingInput = {
@@ -25,6 +28,24 @@ const empty: ReadingInput = {
   upperNtKwh: 0,
 };
 
+/** Build a ReadingInput for the form from an existing reading (drops the id). */
+function stripInitial(initial: { id: string } & ReadingInput): ReadingInput {
+  const rest = { ...initial };
+  delete (rest as { id?: string }).id;
+  return {
+    periodStart: rest.periodStart ?? "",
+    periodEnd: rest.periodEnd ?? "",
+    hepVtKwh: rest.hepVtKwh ?? 0,
+    hepNtKwh: rest.hepNtKwh ?? 0,
+    hepTotalSupply: rest.hepTotalSupply ?? 0,
+    hepFees: rest.hepFees ?? 0,
+    hepGrandTotal: rest.hepGrandTotal ?? 0,
+    upperVtKwh: rest.upperVtKwh ?? 0,
+    upperNtKwh: rest.upperNtKwh ?? 0,
+    ...(rest.sourcePdfId ? { sourcePdfId: rest.sourcePdfId, sourcePdfName: rest.sourcePdfName } : {}),
+  };
+}
+
 function num(v: string): number {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -35,15 +56,19 @@ function num(v: string): number {
  * PDF / pasted-text parse is only a starting point — every value stays
  * editable, so an imperfect parse never blocks data entry (edge case #3).
  */
-export function ReadingForm({ onSubmit }: ReadingFormProps) {
-  const [form, setForm] = useState<ReadingInput>(empty);
+export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
+  const [form, setForm] = useState<ReadingInput>(() =>
+    initial ? stripInitial(initial) : empty,
+  );
   const [rawText, setRawText] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inbox, setInbox] = useState<InboxPdf[]>([]);
-  const [sourcePdfId, setSourcePdfId] = useState<string | undefined>(undefined);
+  const [sourcePdfId, setSourcePdfId] = useState<string | undefined>(
+    initial?.sourcePdfId,
+  );
 
   // Load the invoice inbox (downloaded PDFs) to pick from.
   useEffect(() => {
@@ -132,7 +157,13 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
     setSaving(true);
     setError(null);
     try {
-      await onSubmit(form);
+      if (initial && onUpdate) {
+        // Editing an existing reading — only send changed/added fields so we
+        // don't wipe out data entered on another day.
+        await onUpdate(initial.id, form);
+      } else {
+        await onSubmit(form);
+      }
       reset();
     } catch (err) {
       setError((err as Error).message);
@@ -226,23 +257,23 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
         <legend className="px-2 text-sm font-medium">HEP meter (main build)</legend>
         <div>
           <label className="text-sm font-medium">VT kWh</label>
-          <Input type="number" min="0" step="0.1" value={form.hepVtKwh} onChange={setNum("hepVtKwh")} />
+          <Input type="number" min="0" step="0.0001" value={form.hepVtKwh} onChange={setNum("hepVtKwh")} />
         </div>
         <div>
           <label className="text-sm font-medium">NT kWh</label>
-          <Input type="number" min="0" step="0.1" value={form.hepNtKwh} onChange={setNum("hepNtKwh")} />
+          <Input type="number" min="0" step="0.0001" value={form.hepNtKwh} onChange={setNum("hepNtKwh")} />
         </div>
         <div>
           <label className="text-sm font-medium">Supply (EUR)</label>
-          <Input type="number" min="0" step="0.01" value={form.hepTotalSupply} onChange={setNum("hepTotalSupply")} />
+          <Input type="number" min="0" step="0.0001" value={form.hepTotalSupply} onChange={setNum("hepTotalSupply")} />
         </div>
         <div>
           <label className="text-sm font-medium">Fees (EUR)</label>
-          <Input type="number" min="0" step="0.01" value={form.hepFees} onChange={setNum("hepFees")} />
+          <Input type="number" min="0" step="0.0001" value={form.hepFees} onChange={setNum("hepFees")} />
         </div>
         <div>
           <label className="text-sm font-medium">Grand total (EUR)</label>
-          <Input type="number" min="0" step="0.01" value={form.hepGrandTotal} onChange={setNum("hepGrandTotal")} />
+          <Input type="number" min="0" step="0.0001" value={form.hepGrandTotal} onChange={setNum("hepGrandTotal")} />
         </div>
       </fieldset>
 
@@ -250,11 +281,11 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
         <legend className="px-2 text-sm font-medium">Upper floor monitor</legend>
         <div>
           <label className="text-sm font-medium">VT kWh</label>
-          <Input type="number" min="0" step="0.1" value={form.upperVtKwh} onChange={setNum("upperVtKwh")} />
+          <Input type="number" min="0" step="0.0001" value={form.upperVtKwh} onChange={setNum("upperVtKwh")} />
         </div>
         <div>
           <label className="text-sm font-medium">NT kWh</label>
-          <Input type="number" min="0" step="0.1" value={form.upperNtKwh} onChange={setNum("upperNtKwh")} />
+          <Input type="number" min="0" step="0.0001" value={form.upperNtKwh} onChange={setNum("upperNtKwh")} />
         </div>
       </fieldset>
 

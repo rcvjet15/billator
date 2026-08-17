@@ -9,6 +9,7 @@ import type {
   InboxPdf,
   TariffConfig,
   SyncTrigger,
+  ReadingStatus,
 } from "@/lib/calc/types";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -25,6 +26,7 @@ type ReadingRow = {
   upper_nt_kwh: number;
   source_pdf_id: string | null;
   source_pdf_name: string | null;
+  status: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -136,6 +138,14 @@ export class SqliteAdapter extends StorageAdapter {
         updated_at TEXT
       );
     `);
+
+    // Add `status` column if the table predates it (idempotent migration).
+    const cols = this.db
+      .prepare("PRAGMA table_info(readings)")
+      .all() as unknown as { name: string }[];
+    if (!cols.some((c) => c.name === "status")) {
+      this.db.exec(`ALTER TABLE readings ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`);
+    }
   }
 
   close(): void {
@@ -158,6 +168,7 @@ export class SqliteAdapter extends StorageAdapter {
       upperNtKwh: r.upper_nt_kwh,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
+      ...(r.status ? { status: r.status as Reading["status"] } : {}),
       ...(r.source_pdf_id
         ? { sourcePdfId: r.source_pdf_id, sourcePdfName: r.source_pdf_name ?? undefined }
         : {}),
@@ -177,33 +188,44 @@ export class SqliteAdapter extends StorageAdapter {
   }
 
   createReading(
-    input: Omit<
-      Reading,
-      "id" | "createdAt" | "updatedAt" | "periodStart" | "periodEnd"
-    > & { periodStart: string; periodEnd: string },
+    input: {
+      periodStart: string;
+      periodEnd: string;
+      hepVtKwh?: number;
+      hepNtKwh?: number;
+      hepTotalSupply?: number;
+      hepFees?: number;
+      hepGrandTotal?: number;
+      upperVtKwh?: number;
+      upperNtKwh?: number;
+      sourcePdfId?: string;
+      sourcePdfName?: string;
+    },
   ): Promise<Reading> {
     const now = new Date().toISOString();
     const id = randomUUID();
+    const status = computeReadingStatus(input);
     this.db
       .prepare(
         `INSERT INTO readings (id, period_start, period_end, hep_vt_kwh, hep_nt_kwh,
           hep_total_supply, hep_fees, hep_grand_total, upper_vt_kwh, upper_nt_kwh,
-          source_pdf_id, source_pdf_name, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          source_pdf_id, source_pdf_name, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
         input.periodStart,
         input.periodEnd,
-        input.hepVtKwh,
-        input.hepNtKwh,
-        input.hepTotalSupply,
-        input.hepFees,
-        input.hepGrandTotal,
-        input.upperVtKwh,
-        input.upperNtKwh,
+        input.hepVtKwh ?? 0,
+        input.hepNtKwh ?? 0,
+        input.hepTotalSupply ?? 0,
+        input.hepFees ?? 0,
+        input.hepGrandTotal ?? 0,
+        input.upperVtKwh ?? 0,
+        input.upperNtKwh ?? 0,
         input.sourcePdfId ?? null,
         input.sourcePdfName ?? null,
+        status,
         now,
         now,
       );
@@ -215,29 +237,31 @@ export class SqliteAdapter extends StorageAdapter {
     return existing.then((record) => {
       if (!record) return null;
       const merged: Reading = { ...record, ...input, id, updatedAt: new Date().toISOString() };
+      const status = computeReadingStatus(merged);
       this.db
         .prepare(
           `UPDATE readings SET period_start=?, period_end=?, hep_vt_kwh=?, hep_nt_kwh=?,
             hep_total_supply=?, hep_fees=?, hep_grand_total=?, upper_vt_kwh=?, upper_nt_kwh=?,
-            source_pdf_id=?, source_pdf_name=?, updated_at=?
+            source_pdf_id=?, source_pdf_name=?, status=?, updated_at=?
            WHERE id=?`,
         )
         .run(
           merged.periodStart,
           merged.periodEnd,
-          merged.hepVtKwh,
-          merged.hepNtKwh,
-          merged.hepTotalSupply,
-          merged.hepFees,
-          merged.hepGrandTotal,
-          merged.upperVtKwh,
-          merged.upperNtKwh,
+          merged.hepVtKwh ?? 0,
+          merged.hepNtKwh ?? 0,
+          merged.hepTotalSupply ?? 0,
+          merged.hepFees ?? 0,
+          merged.hepGrandTotal ?? 0,
+          merged.upperVtKwh ?? 0,
+          merged.upperNtKwh ?? 0,
           merged.sourcePdfId ?? null,
           merged.sourcePdfName ?? null,
+          status,
           merged.updatedAt,
           id,
         );
-      return merged;
+      return { ...merged, status };
     });
   }
 
@@ -464,4 +488,23 @@ export class SqliteAdapter extends StorageAdapter {
     const info = this.db.prepare("DELETE FROM inbox_pdfs WHERE id = ?").run(id);
     return Promise.resolve(info.changes > 0);
   }
+}
+
+function computeReadingStatus(r: {
+  hepVtKwh?: number;
+  hepNtKwh?: number;
+  hepTotalSupply?: number;
+  hepFees?: number;
+  hepGrandTotal?: number;
+  upperVtKwh?: number;
+  upperNtKwh?: number;
+}): ReadingStatus {
+  const hasInvoice =
+    Number(r.hepVtKwh) > 0 ||
+    Number(r.hepNtKwh) > 0 ||
+    Number(r.hepGrandTotal) > 0 ||
+    Number(r.hepTotalSupply) > 0 ||
+    Number(r.hepFees) > 0;
+  const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
+  return hasInvoice && hasUpper ? "complete" : "pending";
 }

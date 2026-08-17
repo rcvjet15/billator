@@ -104,6 +104,18 @@ export default function SettingsPage() {
               />
               Enable Gmail sync
             </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={current.gmail.autoParse}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  patchDraft((d) => ({ ...d, gmail: { ...d.gmail, autoParse: v } }));
+                  void persist({ gmail: { autoParse: v } } as Partial<AppSettings>);
+                }}
+              />
+              Auto-parse downloaded invoices (store parsed invoice data)
+            </label>
             <Field
               label="Client ID"
               value={current.gmail.clientId}
@@ -330,13 +342,13 @@ function TariffTab({
         subtitle="HEP energy rates, fees, VAT, and the 3,000 kWh overage rule."
       />
       <div className="grid grid-cols-2 gap-4">
-        {field("energyRateVt", "Energy rate VT (€/kWh)", "0.001")}
-        {field("energyRateNt", "Energy rate NT (€/kWh)", "0.001")}
-        {field("fixedFee", "Monthly fixed fee (€)", "0.01")}
-        {field("gridFeeRate", "Grid fee rate (€/kWh)", "0.001")}
-        {field("vatRate", "VAT rate (0.13 = 13%)", "0.001")}
+        {field("energyRateVt", "Energy rate VT (€/kWh)", "0.0001")}
+        {field("energyRateNt", "Energy rate NT (€/kWh)", "0.0001")}
+        {field("fixedFee", "Monthly fixed fee (€)", "0.0001")}
+        {field("gridFeeRate", "Grid fee rate (€/kWh)", "0.0001")}
+        {field("vatRate", "VAT rate (0.13 = 13%)", "0.0001")}
         {field("overageThresholdKwh", "Overage threshold (kWh)", "1")}
-        {field("overageMultiplier", "Overage multiplier", "0.01")}
+        {field("overageMultiplier", "Overage multiplier", "0.0001")}
       </div>
       <div className="mt-4">
         <Button

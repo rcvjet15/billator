@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { InboxPdf, SyncLog, SyncTrigger } from "@/lib/calc/types";
 import { getGmailClient, type GmailClient } from "@/lib/gmail/client";
+import { parseHepPdfBuffer } from "@/lib/parse/hep";
 import { loadSettings } from "@/lib/settings";
 import { StorageService } from "@/lib/storage-service";
 
@@ -115,11 +116,34 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         await writeFile(absPath, bytes);
         files.push(path.join(settings.storage.inboxDir, filename));
 
+        // Auto-parse the invoice if enabled; store preview + period on inbox.
+        let parsePreview;
+        let parsedAt;
+        if (settings.gmail.autoParse) {
+          const r = await parseHepPdfBuffer(bytes);
+          if (r && r.confidence > 0) {
+            parsePreview = {
+              periodStart: r.periodStart,
+              periodEnd: r.periodEnd,
+              hepVtKwh: r.hepVtKwh,
+              hepNtKwh: r.hepNtKwh,
+              hepTotalSupply: r.hepTotalSupply,
+              hepFees: r.hepFees,
+              hepGrandTotal: r.hepGrandTotal,
+              hepOverageKwh: r.hepOverageKwh,
+              confidence: r.confidence,
+            } satisfies InboxPdf["parsePreview"];
+            parsedAt = new Date().toISOString();
+          }
+        }
+
         // Register in inbox.
         const pdf: Omit<InboxPdf, "id" | "downloadedAt"> = {
           filename,
           path: path.join(settings.storage.inboxDir, filename),
           msgId: messageId,
+          parsePreview,
+          parsedAt,
         };
         await storage.addInboxPdf(pdf);
         downloadedCount += 1;

@@ -62,6 +62,7 @@ export async function PUT(req: NextRequest) {
     if (typeof gmail.query === "string") gmailPatch.query = gmail.query;
     if (typeof gmail.redirectUri === "string")
       gmailPatch.redirectUri = gmail.redirectUri;
+    if (gmail.autoParse !== undefined) gmailPatch.autoParse = !!gmail.autoParse;
 
     // Client secret is write-only: encrypt + persist, then flip the flag.
     if (typeof gmail.clientSecret === "string" && gmail.clientSecret && gmail.clientSecret !== "########") {

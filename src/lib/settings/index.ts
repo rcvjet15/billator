@@ -11,6 +11,7 @@ const DEFAULTS: AppSettings = {
     pollIntervalMs: 6 * 60 * 60 * 1000, // 6 hours
     query: "from:hep.hr has:attachment is:unread",
     redirectUri: "http://localhost:3000/api/gmail/auth/callback",
+    autoParse: false,
   },
   hepSync: {
     sourceUrl: "",
@@ -61,6 +62,8 @@ export async function loadSettings(): Promise<AppSettings> {
     query: (await storage.getSetting(`${KEY_PREFIX}gmail.query`)) || s.gmail.query,
     redirectUri:
       (await storage.getSetting(`${KEY_PREFIX}gmail.redirectUri`)) || s.gmail.redirectUri,
+    autoParse:
+      bool(await storage.getSetting(`${KEY_PREFIX}gmail.autoParse`)) ?? s.gmail.autoParse,
   };
 
   s.hepSync = {
@@ -110,6 +113,7 @@ export async function saveSettings(
     if (g.query !== undefined) set(`${KEY_PREFIX}gmail.query`, g.query);
     if (g.redirectUri !== undefined)
       set(`${KEY_PREFIX}gmail.redirectUri`, g.redirectUri);
+    if (g.autoParse !== undefined) set(`${KEY_PREFIX}gmail.autoParse`, g.autoParse);
   }
 
   if (patch.hepSync) {

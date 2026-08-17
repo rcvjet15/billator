@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Reading, TariffConfig, SyncLog, InboxPdf } from "@/lib/calc/types";
+import type { Reading, TariffConfig, SyncLog, InboxPdf, ReadingStatus } from "@/lib/calc/types";
 import { randomUUID } from "node:crypto";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -70,15 +70,32 @@ export class FilesystemAdapter extends StorageAdapter {
   }
 
   async createReading(
-    input: Omit<Reading, "id" | "createdAt" | "updatedAt" | "periodStart" | "periodEnd"> & {
+    input: {
       periodStart: string;
       periodEnd: string;
+      hepVtKwh?: number;
+      hepNtKwh?: number;
+      hepTotalSupply?: number;
+      hepFees?: number;
+      hepGrandTotal?: number;
+      upperVtKwh?: number;
+      upperNtKwh?: number;
+      sourcePdfId?: string;
+      sourcePdfName?: string;
     },
   ): Promise<Reading> {
     const state = await this.read();
     const now = new Date().toISOString();
     const reading: Reading = {
       ...input,
+      hepVtKwh: input.hepVtKwh ?? 0,
+      hepNtKwh: input.hepNtKwh ?? 0,
+      hepTotalSupply: input.hepTotalSupply ?? 0,
+      hepFees: input.hepFees ?? 0,
+      hepGrandTotal: input.hepGrandTotal ?? 0,
+      upperVtKwh: input.upperVtKwh ?? 0,
+      upperNtKwh: input.upperNtKwh ?? 0,
+      status: computeFsStatus(input),
       id: randomUUID(),
       createdAt: now,
       updatedAt: now,
@@ -98,6 +115,7 @@ export class FilesystemAdapter extends StorageAdapter {
     const updated: Reading = {
       ...found,
       ...input,
+      status: computeFsStatus(input),
       id,
       updatedAt: new Date().toISOString(),
     };
@@ -233,4 +251,23 @@ export class FilesystemAdapter extends StorageAdapter {
     await this.write(state);
     return true;
   }
+}
+
+function computeFsStatus(r: {
+  hepVtKwh?: number;
+  hepNtKwh?: number;
+  hepTotalSupply?: number;
+  hepFees?: number;
+  hepGrandTotal?: number;
+  upperVtKwh?: number;
+  upperNtKwh?: number;
+}): ReadingStatus {
+  const hasInvoice =
+    Number(r.hepVtKwh) > 0 ||
+    Number(r.hepNtKwh) > 0 ||
+    Number(r.hepGrandTotal) > 0 ||
+    Number(r.hepTotalSupply) > 0 ||
+    Number(r.hepFees) > 0;
+  const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
+  return hasInvoice && hasUpper ? "complete" : "pending";
 }

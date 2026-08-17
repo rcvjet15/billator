@@ -17,11 +17,22 @@ export abstract class StorageAdapter {
 
   abstract getReading(id: string): Promise<Reading | null>;
 
+  /** Create a reading. Numeric fields are optional so invoice-only or
+   *  monitor-only records can be started and completed asynchronously. */
   abstract createReading(
-    input: Omit<
-      Reading,
-      "id" | "createdAt" | "updatedAt" | "periodStart" | "periodEnd"
-    > & { periodStart: string; periodEnd: string },
+    input: {
+      periodStart: string;
+      periodEnd: string;
+      hepVtKwh?: number;
+      hepNtKwh?: number;
+      hepTotalSupply?: number;
+      hepFees?: number;
+      hepGrandTotal?: number;
+      upperVtKwh?: number;
+      upperNtKwh?: number;
+      sourcePdfId?: string;
+      sourcePdfName?: string;
+    },
   ): Promise<Reading>;
 
   abstract updateReading(

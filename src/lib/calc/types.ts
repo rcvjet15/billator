@@ -10,6 +10,8 @@ export interface SemesterBlock {
   label: string;
 }
 
+export type ReadingStatus = "pending" | "complete";
+
 export interface Reading {
   id: string;
   periodStart: string;
@@ -23,6 +25,8 @@ export interface Reading {
   upperNtKwh: number;
   createdAt: string;
   updatedAt: string;
+  /** A reading is complete when it has invoice (HEP) data and upper-floor data. */
+  status?: ReadingStatus;
   /** Optional reference to the invoice PDF that produced this reading. */
   sourcePdfId?: string;
   sourcePdfName?: string;
@@ -31,13 +35,13 @@ export interface Reading {
 export interface ReadingInput {
   periodStart: string;
   periodEnd: string;
-  hepVtKwh: number;
-  hepNtKwh: number;
-  hepTotalSupply: number;
-  hepFees: number;
-  hepGrandTotal: number;
-  upperVtKwh: number;
-  upperNtKwh: number;
+  hepVtKwh?: number;
+  hepNtKwh?: number;
+  hepTotalSupply?: number;
+  hepFees?: number;
+  hepGrandTotal?: number;
+  upperVtKwh?: number;
+  upperNtKwh?: number;
   sourcePdfId?: string;
   sourcePdfName?: string;
 }

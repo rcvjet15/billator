@@ -21,6 +21,7 @@ type ReadingRow = {
   hep_grand_total: number;
   upper_vt_kwh: number;
   upper_nt_kwh: number;
+  status: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -37,7 +38,7 @@ type TariffRow = {
 };
 
 const READING_ROWS =
-  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,created_at,updated_at";
+  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,status,created_at,updated_at";
 
 function toReading(row: ReadingRow): Reading {
   return {
@@ -51,6 +52,7 @@ function toReading(row: ReadingRow): Reading {
     hepGrandTotal: row.hep_grand_total,
     upperVtKwh: row.upper_vt_kwh,
     upperNtKwh: row.upper_nt_kwh,
+    ...(row.status ? { status: row.status as Reading["status"] } : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -108,9 +110,18 @@ export class SupabaseAdapter extends StorageAdapter {
   }
 
   async createReading(
-    input: Omit<Reading, "id" | "createdAt" | "updatedAt" | "periodStart" | "periodEnd"> & {
+    input: {
       periodStart: string;
       periodEnd: string;
+      hepVtKwh?: number;
+      hepNtKwh?: number;
+      hepTotalSupply?: number;
+      hepFees?: number;
+      hepGrandTotal?: number;
+      upperVtKwh?: number;
+      upperNtKwh?: number;
+      sourcePdfId?: string;
+      sourcePdfName?: string;
     },
   ): Promise<Reading> {
     const { data, error } = await this.client
@@ -118,13 +129,16 @@ export class SupabaseAdapter extends StorageAdapter {
       .insert({
         period_start: input.periodStart,
         period_end: input.periodEnd,
-        hep_vt_kwh: input.hepVtKwh,
-        hep_nt_kwh: input.hepNtKwh,
-        hep_total_supply: input.hepTotalSupply,
-        hep_fees: input.hepFees,
-        hep_grand_total: input.hepGrandTotal,
-        upper_vt_kwh: input.upperVtKwh,
-        upper_nt_kwh: input.upperNtKwh,
+        hep_vt_kwh: input.hepVtKwh ?? 0,
+        hep_nt_kwh: input.hepNtKwh ?? 0,
+        hep_total_supply: input.hepTotalSupply ?? 0,
+        hep_fees: input.hepFees ?? 0,
+        hep_grand_total: input.hepGrandTotal ?? 0,
+        upper_vt_kwh: input.upperVtKwh ?? 0,
+        upper_nt_kwh: input.upperNtKwh ?? 0,
+        source_pdf_id: input.sourcePdfId ?? null,
+        source_pdf_name: input.sourcePdfName ?? null,
+        status: computeSupabaseStatus(input),
       })
       .select(READING_ROWS)
       .single();
@@ -158,6 +172,7 @@ export class SupabaseAdapter extends StorageAdapter {
         ...(input.upperNtKwh !== undefined && {
           upper_nt_kwh: input.upperNtKwh,
         }),
+        status: computeSupabaseStatus(input as Reading),
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -397,4 +412,23 @@ function rowToInboxPdf(r: Record<string, unknown>): InboxPdf {
       ? (JSON.parse(r.parse_preview as string) as InboxPdf["parsePreview"])
       : undefined,
   };
+}
+
+function computeSupabaseStatus(r: {
+  hepVtKwh?: number;
+  hepNtKwh?: number;
+  hepTotalSupply?: number;
+  hepFees?: number;
+  hepGrandTotal?: number;
+  upperVtKwh?: number;
+  upperNtKwh?: number;
+}): Reading["status"] {
+  const hasInvoice =
+    Number(r.hepVtKwh) > 0 ||
+    Number(r.hepNtKwh) > 0 ||
+    Number(r.hepGrandTotal) > 0 ||
+    Number(r.hepTotalSupply) > 0 ||
+    Number(r.hepFees) > 0;
+  const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
+  return hasInvoice && hasUpper ? "complete" : "pending";
 }

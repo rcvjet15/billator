@@ -20,6 +20,8 @@ export interface GmailSettings {
   pollIntervalMs: number;
   query: string;
   redirectUri: string;
+  /** If true, the sync worker parses downloaded PDFs (invoice data) automatically. */
+  autoParse: boolean;
 }
 
 export interface HepSyncSettings {

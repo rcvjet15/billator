@@ -28,6 +28,18 @@ export interface HepParseResult {
   confidence: number;
 }
 
+/** Parse a PDF buffer (bytes) into a HepParseResult, or null on failure. */
+export async function parseHepPdfBuffer(bytes: Uint8Array): Promise<HepParseResult | null> {
+  try {
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: bytes as unknown as ArrayBuffer });
+    const text = (await parser.getText()) as unknown as { text: string };
+    return parseHepInvoice(text.text ?? "");
+  } catch {
+    return null;
+  }
+}
+
 /** Convert an OCR money string (e.g. "12,34", "1.234,56") to a number. */
 function toNumber(raw: string | undefined): number | undefined {
   if (!raw) return undefined;
