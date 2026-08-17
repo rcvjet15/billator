@@ -14,8 +14,6 @@ const DEFAULTS: AppSettings = {
     autoParse: false,
   },
   hepSync: {
-    sourceUrl: "",
-    useBaselineFallback: true,
     tariffModel: "Bijeli",
   },
   storage: {
@@ -69,11 +67,6 @@ export async function loadSettings(): Promise<AppSettings> {
 
   s.hepSync = {
     ...s.hepSync,
-    sourceUrl:
-      (await storage.getSetting(`${KEY_PREFIX}hepSync.sourceUrl`)) || s.hepSync.sourceUrl,
-    useBaselineFallback:
-      bool(await storage.getSetting(`${KEY_PREFIX}hepSync.useBaselineFallback`)) ??
-      s.hepSync.useBaselineFallback,
     tariffModel:
       (await storage.getSetting(`${KEY_PREFIX}hepSync.tariffModel`)) || s.hepSync.tariffModel,
   };
@@ -121,9 +114,6 @@ export async function saveSettings(
 
   if (patch.hepSync) {
     const h = patch.hepSync;
-    if (h.sourceUrl !== undefined) set(`${KEY_PREFIX}hepSync.sourceUrl`, h.sourceUrl);
-    if (h.useBaselineFallback !== undefined)
-      set(`${KEY_PREFIX}hepSync.useBaselineFallback`, h.useBaselineFallback);
     if (h.tariffModel !== undefined)
       set(`${KEY_PREFIX}hepSync.tariffModel`, h.tariffModel);
   }

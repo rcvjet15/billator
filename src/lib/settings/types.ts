@@ -25,11 +25,7 @@ export interface GmailSettings {
 }
 
 export interface HepSyncSettings {
-  /** Configurable source URL for official tariff prices. */
-  sourceUrl: string;
-  /** When true, fall back to the bundled baseline template. */
-  useBaselineFallback: boolean;
-  /** Which HEP household tariff model to read (e.g. "Bijeli", "Plavi"). */
+  /** Which HEP household tariff model to use (e.g. "Bijeli", "Plavi"). */
   tariffModel: string;
 }
 

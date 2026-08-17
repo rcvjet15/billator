@@ -89,11 +89,4 @@ export const api = {
     pollIntervalMs: number;
     query: string;
   }> => request("/api/gmail/status"),
-
-  syncOfficialPrices: (): Promise<{
-    ok: boolean;
-    source: string;
-    tariffs: AppSettings["tariffs"];
-    message: string;
-  }> => request("/api/tariffs/sync", { method: "POST" }),
 };

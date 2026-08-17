@@ -79,9 +79,6 @@ export async function PUT(req: NextRequest) {
 
     // HEP sync
     const hepPatch: Partial<AppSettings["hepSync"]> = {};
-    if (typeof hepSync.sourceUrl === "string") hepPatch.sourceUrl = hepSync.sourceUrl;
-    if (hepSync.useBaselineFallback !== undefined)
-      hepPatch.useBaselineFallback = !!hepSync.useBaselineFallback;
     if (typeof hepSync.tariffModel === "string") hepPatch.tariffModel = hepSync.tariffModel;
     await saveSettings({ hepSync: hepPatch } as Partial<AppSettings>);
 

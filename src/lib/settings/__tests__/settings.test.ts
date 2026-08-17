@@ -4,7 +4,6 @@ import { SecretStore } from "@/lib/security/secret";
 import {
   PRICE_BASELINE,
   baselineForModel,
-  fetchPricingFromUrl,
   listTariffModels,
 } from "@/lib/pricing-baseline";
 
@@ -36,10 +35,6 @@ describe("pricing baseline", () => {
     expect(PRICE_BASELINE.energyRateVt).toBeGreaterThan(0);
     expect(PRICE_BASELINE.overageThresholdKwh).toBe(3000);
     expect(PRICE_BASELINE.overageMultiplier).toBeCloseTo(1.35, 2);
-  });
-
-  it("returns null when no URL is configured", async () => {
-    expect(await fetchPricingFromUrl("")).toBeNull();
   });
 });
 

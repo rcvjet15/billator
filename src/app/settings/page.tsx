@@ -7,8 +7,8 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
-import { api } from "@/lib/api";
 import { useSettings } from "@/hooks/useSettings";
+import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
 
 type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "advanced";
@@ -22,7 +22,7 @@ const tabs: { id: TabId; label: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { settings, loading, saving, error, save, setSettings } = useSettings();
+  const { settings, loading, saving, error, save } = useSettings();
   const [active, setActive] = useState<TabId>("gmail");
   const [draft, setDraft] = useState<AppSettings | null>(null);
 
@@ -38,22 +38,10 @@ export default function SettingsPage() {
     if (updated) setDraft(updated);
   };
 
-  const [syncingPrices, setSyncingPrices] = useState(false);
-  const [priceMsg, setPriceMsg] = useState<string | null>(null);
-  const syncPrices = async () => {
-    setSyncingPrices(true);
-    setPriceMsg(null);
-    try {
-      const res = await api.syncOfficialPrices();
-      setPriceMsg(res.message);
-      const updated = await api.getSettings();
-      setSettings(updated.settings);
-      setDraft(updated.settings);
-    } catch (e) {
-      setPriceMsg(`Error: ${(e as Error).message}`);
-    } finally {
-      setSyncingPrices(false);
-    }
+  // "Load model rates": return the selected model's baseline tariffs so the
+  // editable tariff form can be seeded.
+  const loadModelRates = (): AppSettings["tariffs"] => {
+    return baselineForModel(settings?.hepSync.tariffModel ?? "Bijeli");
   };
 
   if (loading && !settings) {
@@ -182,31 +170,6 @@ export default function SettingsPage() {
             subtitle="Official tariff price source and baseline fallback."
           />
           <div className="flex flex-col gap-4">
-            <Field
-              label="Tariff source URL"
-              value={current.hepSync.sourceUrl}
-              onChange={(v) =>
-                patchDraft((d) => ({
-                  ...d,
-                  hepSync: { ...d.hepSync, sourceUrl: v },
-                }))
-              }
-              placeholder="Optional URL to import tariff prices from"
-            />
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                checked={current.hepSync.useBaselineFallback}
-                onChange={(e) => {
-                  const v = e.target.checked;
-                  patchDraft((d) => ({
-                    ...d,
-                    hepSync: { ...d.hepSync, useBaselineFallback: v },
-                  }));
-                }}
-              />
-              Fall back to bundled baseline template
-            </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm font-medium">
                 Tariff model{" "}
@@ -232,26 +195,21 @@ export default function SettingsPage() {
                 ))}
               </select>
             </label>
-            <div className="flex gap-2">
+            <p className="text-sm text-muted-foreground">
+              Selecting a model only sets which rates are used as the baseline.
+              Use the Tariffs tab to view/adjust them, and “Load model rates”
+              to populate the tariff form from the chosen model.
+            </p>
+            <div>
               <Button
                 onClick={() =>
                   void persist({ hepSync: current.hepSync } as Partial<AppSettings>)
                 }
                 loading={saving}
               >
-                Save HEP sync settings
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void syncPrices()}
-                loading={syncingPrices}
-              >
-                Sync official prices
+                Save model
               </Button>
             </div>
-            {priceMsg && (
-              <p className="text-sm text-muted-foreground">{priceMsg}</p>
-            )}
           </div>
         </Card>
       )}
@@ -301,6 +259,7 @@ export default function SettingsPage() {
         <TariffTab
           tariffs={current.tariffs}
           saving={saving}
+          onLoadModel={loadModelRates}
           onSave={(patch) =>
             void persist({ tariffs: { ...current.tariffs, ...patch } } as Partial<AppSettings>)
           }
@@ -345,10 +304,12 @@ function TariffTab({
   tariffs,
   saving,
   onSave,
+  onLoadModel,
 }: {
   tariffs: AppSettings["tariffs"];
   saving: boolean;
   onSave: (patch: Partial<AppSettings["tariffs"]>) => void;
+  onLoadModel: () => AppSettings["tariffs"];
 }) {
   const [draft, setDraft] = useState(tariffs);
   const field = (key: keyof AppSettings["tariffs"], label: string, step: string) => (
@@ -375,12 +336,15 @@ function TariffTab({
         {field("overageThresholdKwh", "Overage threshold (kWh)", "1")}
         {field("overageMultiplier", "Overage multiplier", "0.0001")}
       </div>
-      <div className="mt-4">
+      <div className="mt-4 flex gap-2">
         <Button
           onClick={() => onSave(draft as Partial<AppSettings["tariffs"]>)}
           loading={saving}
         >
           Save tariffs
+        </Button>
+        <Button variant="outline" onClick={() => setDraft(onLoadModel())}>
+          Load model rates
         </Button>
       </div>
     </Card>
