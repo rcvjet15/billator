@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev data (filesystem storage)
+/data/
+
+# real scanned invoices (personal data) — keep out of VCS
+/bills/

@@ -1,0 +1,105 @@
+racun
+ELEKTRA d.o.o. Datum računa: 31.07.2026
+Račun izdan: RIJEKA, 04.08.2026, 13:51:59
+Račun broj: 2603829291-03-K1
+Datum dospijeća: 22.08.2026
+Dok. ispisa: 100014687811
+Oznaka operatera: P000
+R-1
+ZAGREB, Ulica grada Vukovara 37
+OIB: 43965974818, Matični broj: 04622430
+Direktor: Vladimir Kurečić
+Trgovački sud u Zagrebu, MBS: 081058899
+Temeljni kapital: 53.109.810,00 EUR, uplaćen u cijelosti
+IBAN: HR5524020061500273691, otvoren u
+ERSTE&STEIERMÄRKISCHE BANK D.D., Rijeka
+TEL: 0800 300 303, FAX: 00385 (0)51 204 536
+Podaci o kupcu:
+Ugovorni račun: 2202040675
+Poslovni partner: 1000966002
+Kupac: CVJETKOVIĆ BOŽANA
+Ulica i kbr: GORNJI JUGI 7/D
+Mjesto: VIŠKOVO
+OIB: 47185896772
+Broj mjernih mjesta obuhvaćenih računom: 1
+CVJETKOVIĆ BOŽANA
+GORNJI JUGI 7/D
+51216 VIŠKOVO
+Račun za razdoblje isporuke 01.07.2026 - 31.07.2026, Poziv na broj: 2202040675-260720-7
+Opis Iznos EUR
+Ukupan iznos za električnu energiju (opskrba i korištenje mreže) 157,30
+Naknada za poticanje proizvodnje iz obnovljivih izvora 13,74
+Solidarna naknada 4,13
+Popust za solidarnu naknadu -4,13
+Porezna osnovica 171,04
+PDV 13 % (osnovica 171,04) 22,24
+Kamata (ne oporezuje se prema čl.25.st.5 Pravilnika o PDV-u) 0,32
+UKUPAN IZNOS RAČUNA 193,60
+Oslobođeno od plaćanja trošarine sukladno članku 105. stavku 8. točki 5.Zakona o trošarinama
+Podaci na poleđini su sastavni dio računa.
+Na dan izdavanja računa (ne uključujući ovaj račun), Vaše dugovanje iznosi: 19,21 EUR
+Temeljem Uredbe Vlade RH o otklanjanju poremećaja na domaćem tržištu energije, cijena električne energije ostaje regulirana do
+30.09.2026. godine.
+CVJETKOVIĆ BOŽANA
+GORNJI JUGI 7/D
+51216 VIŠKOVO
+EUR 193,60
+HR5524020061500273691
+HR01 2202040675-260720-7
+Ugovorni račun: 2202040675
+Račun za razdoblje: 01.07.2026 - 31.07.2026
+Datum dospijeća: 22.08.2026
+HEP Elektra d.o.o.
+Ulica grada Vukovara 37
+10000 ZAGREB
+EUR=193,60
+CVJETKOVIĆ BOŽANA, GORNJI JUGI 7/D
+HR5524020061500273691
+Ugovorni račun: 2202040675
+HR01 2202040675-260720-7
+Račun za razdoblje: 01.07.2026-31.07.2026
+Datum dospijeća: 22.08.2026
+
+-- 1 of 2 --
+
+OBRAČUN PO MJESTU POTROŠNJE
+Obračunsko mjesto: CVJETKOVIĆ BOŽANA, VIŠKOVO, GORNJI JUGI, 7/D
+Broj obračunskog mjesta: 1200250544 Kategorija potrošnje: Kućanstvo Tarifni model: Kućanstvo Bijeli Obr.: 1
+Broj brojila Datum od Datum do Tar. stavka Stanje od Stanje do Konstanta Potrošak
+92094529 01.07.2026 31.07.2026 RVT R1 00008196,43 00008845,93 - očitanje 1 649,51
+RNT R2 00006348,24 00006736,69 - očitanje 1 388,45
+Obračunska stavka Datum od - do Količina Jedinica mjere Cijena Iznos EUR
+RVT Distribucija 01.07.2026 - 31.07.2026 650 kWh 0,044446 28,89
+RNT Distribucija 01.07.2026 - 31.07.2026 388 kWh 0,020514 7,96
+Naknada za OMM Distribucija 01.07.2026 - 31.07.2026 1,00 Mjesec 1,983000 1,98
+Distribucija Ukupno 38,83
+RVT Prijenos 01.07.2026 - 31.07.2026 650 kWh 0,021256 13,82
+RNT Prijenos 01.07.2026 - 31.07.2026 388 kWh 0,008175 3,17
+Prijenos Ukupno 16,99
+RVT Opskrba 01.07.2026 - 31.07.2026 222 kWh 0,097189 21,58
+RNT Opskrba 01.07.2026 - 31.07.2026 133 kWh 0,047688 6,34
+RVT Opskrba > 3.000 kWh 01.07.2026 - 31.07.2026 428 kWh 0,131205 56,16
+RNT Opskrba > 3.000 kWh 01.07.2026 - 31.07.2026 255 kWh 0,064379 16,42
+Naknada za opskrbu 01.07.2026 - 31.07.2026 1,00 Mjesec 0,982000 0,98
+Opskrba Ukupno 101,48
+Ukupan iznos za električnu energiju (opskrba i korištenje mreže) 157,30
+Naknada za poticanje proizvodnje iz obnovljivih izvora 01.07.2026 - 31.07.2026 1.038 kWh 0,013239 13,74
+Solidarna naknada 01.07.2026 - 31.07.2026 1.038 kWh 0,003982 4,13
+Popust za solidarnu naknadu 01.07.2026 - 31.07.2026 -4,13
+Vaš račun možete osporiti u roku od 20 dana od dana izdavanja, uz dostavljeno stanje Va šeg brojila.
+Informacije o mjerama energetske učinkovitosti u HEP grupi pruža HEP ESCO d.o.o., Ulica grada Vukovara 37, 10000 Zagreb.
+Dodatne informacije raspoložive su putem Internet adrese: http://www.hep.hr/esco/
+Na našim internetskim stranicama možete pronaći informacije o izboru načina plaćanja (http://www.hep.hr/elektra/kupci/cesta-pitanja/1528).
+U slučaju neispunjenja dospjele novčane obveze, možemo zatražiti određivanje ovrhe na temelju vjerodostojne isprave.
+Podaci potrebni krajnjem kupcu za pokretanje postupka promjene opskrbljiva ča su: ime i prezime, adresa, osobni identifikacijski broj (OIB), broj obračunskog mjernog mjesta te stanje brojila.
+Proces provedbe promjene opskrbljivača za Vas provodi odabrani opskrbljivač, čija je obveza pružanje kupcu svih informacija o procesu promjene opskrbljiva ča.
+Na stranicama HEP Elektre (http://www.hep.hr/elektra/trziste-elektricne-energije/izvori-elektricne-energije/1553) mo žete naći Obavijest o strukturi potrošnje električne energije u Republici
+Hrvatskoj za proteklu godinu. Ukoliko želite personaliziranu obavijest primiti i na Vašu adresu, molimo Vas da nam pošaljete zahtjev putem web obrasca dostupnog na Internet stranicama HEP
+Elektre (http://www.hep.hr/elektra/kontakti/1556).
+Molimo Vas da provjerite Vaše osobne podatke te eventualne zahtjeve za promjenom dostavite pisanim putem.
+Vaša pitanja, reklamacije te pisane prigovore možete dostaviti poštom na adresu HEP ELEKTRA d.o.o., VIKTORA CARA EMINA 2, 51000 RIJEKA, telefaksom na broj 00385 (0)51
+204 536, putem web obrasca dostupnog na Internet stranicama HEP Elektre (http://www.hep.hr/elektra/kontakti/1556) ili predati osobno, na adresi: VIKTORA CARA EMINA 2, 51000
+RIJEKA.
+
+-- 2 of 2 --
+
