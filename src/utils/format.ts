@@ -20,3 +20,10 @@ export function formatDate(d: string | Date): string {
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString();
 }
+
+/** Format an ISO date string (or Date) including time. */
+export function formatDateWithTime(d: string | Date): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
+}

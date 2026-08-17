@@ -1,6 +1,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import type { Reading, TariffConfig } from "@/lib/calc/types";
+import type {
+  Reading,
+  TariffConfig,
+  SyncLog,
+  InboxPdf,
+  SyncTrigger,
+} from "@/lib/calc/types";
 import { env } from "@/lib/env";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -202,4 +208,193 @@ export class SupabaseAdapter extends StorageAdapter {
     if (error) throw new Error(error.message);
     return toTariff(data as TariffRow);
   }
+
+  // ---- settings ----------------------------------------------------------
+
+  async getSetting(key: string): Promise<string | null> {
+    const { data, error } = await this.client
+      .from("settings")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
+    if (error && error.code !== "PGRST116") throw new Error(error.message);
+    return (data as { value: string } | null)?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    const { error } = await this.client
+      .from("settings")
+      .upsert({ key, value }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+  }
+
+  // ---- Gmail OAuth -------------------------------------------------------
+
+  async getOAuthState(): Promise<{ refreshToken?: string } | null> {
+    const { data, error } = await this.client
+      .from("gmail_oauth")
+      .select("refresh_token")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error && error.code !== "PGRST116") throw new Error(error.message);
+    const row = data as { refresh_token: string | null } | null;
+    return row?.refresh_token ? { refreshToken: row.refresh_token } : null;
+  }
+
+  async setOAuthState(state: { refreshToken: string }): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await this.client.from("gmail_oauth").upsert(
+      { id: 1, refresh_token: state.refreshToken, created_at: now, updated_at: now },
+      { onConflict: "id" },
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  async clearOAuthState(): Promise<void> {
+    const { error } = await this.client.from("gmail_oauth").delete().eq("id", 1);
+    if (error) throw new Error(error.message);
+  }
+
+  // ---- sync logs ---------------------------------------------------------
+
+  async addSyncLog(
+    log: Omit<SyncLog, "id" | "timestamp">,
+  ): Promise<SyncLog> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.client
+      .from("sync_logs")
+      .insert({
+        ok: log.ok,
+        found: log.found,
+        message_id: log.messageId ?? null,
+        downloaded_file: log.downloadedFile ?? null,
+        error: log.error ?? null,
+        status: log.status,
+        trigger: log.trigger,
+        timestamp: now,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return rowToSyncLog(data);
+  }
+
+  async listSyncLogs(limit = 50): Promise<SyncLog[]> {
+    const { data, error } = await this.client
+      .from("sync_logs")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(rowToSyncLog);
+  }
+
+  async clearSyncLogs(): Promise<void> {
+    const { error } = await this.client.from("sync_logs").delete().neq("id", "");
+    if (error) throw new Error(error.message);
+  }
+
+  // ---- inbox PDFs --------------------------------------------------------
+
+  async addInboxPdf(
+    pdf: Omit<InboxPdf, "id" | "downloadedAt">,
+  ): Promise<InboxPdf> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .insert({
+        filename: pdf.filename,
+        path: pdf.path,
+        msg_id: pdf.msgId ?? null,
+        parsed_at: pdf.parsedAt ?? null,
+        reading_id: pdf.readingId ?? null,
+        parse_preview: pdf.parsePreview ? JSON.stringify(pdf.parsePreview) : null,
+        downloaded_at: now,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return rowToInboxPdf(data);
+  }
+
+  async listInboxPdfs(): Promise<InboxPdf[]> {
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .select("*")
+      .order("downloaded_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(rowToInboxPdf);
+  }
+
+  async getInboxPdf(id: string): Promise<InboxPdf | null> {
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? rowToInboxPdf(data) : null;
+  }
+
+  async updateInboxPdf(
+    id: string,
+    patch: Partial<InboxPdf>,
+  ): Promise<InboxPdf | null> {
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .update({
+        ...(patch.filename !== undefined && { filename: patch.filename }),
+        ...(patch.path !== undefined && { path: patch.path }),
+        ...(patch.msgId !== undefined && { msg_id: patch.msgId }),
+        ...(patch.parsedAt !== undefined && { parsed_at: patch.parsedAt }),
+        ...(patch.readingId !== undefined && { reading_id: patch.readingId }),
+        ...(patch.parsePreview !== undefined && {
+          parse_preview: JSON.stringify(patch.parsePreview),
+        }),
+      })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? rowToInboxPdf(data) : null;
+  }
+
+  async deleteInboxPdf(id: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data?.length ?? 0) > 0;
+  }
+}
+
+function rowToSyncLog(r: Record<string, unknown>): SyncLog {
+  return {
+    id: r.id as string,
+    timestamp: r.timestamp as string,
+    ok: !!r.ok,
+    found: !!r.found,
+    messageId: (r.message_id as string | null) ?? undefined,
+    downloadedFile: (r.downloaded_file as string | null) ?? undefined,
+    error: (r.error as string | null) ?? undefined,
+    status: r.status as string,
+    trigger: r.trigger as SyncTrigger,
+  };
+}
+
+function rowToInboxPdf(r: Record<string, unknown>): InboxPdf {
+  return {
+    id: r.id as string,
+    filename: r.filename as string,
+    path: r.path as string,
+    msgId: (r.msg_id as string | null) ?? undefined,
+    downloadedAt: r.downloaded_at as string,
+    parsedAt: (r.parsed_at as string | null) ?? undefined,
+    readingId: (r.reading_id as string | null) ?? undefined,
+    parsePreview: r.parse_preview
+      ? (JSON.parse(r.parse_preview as string) as InboxPdf["parsePreview"])
+      : undefined,
+  };
 }

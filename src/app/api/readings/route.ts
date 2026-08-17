@@ -50,6 +50,10 @@ function validateInput(body: unknown): { input: ReadingInput } | { error: string
       hepGrandTotal: hepGrandTotal as number,
       upperVtKwh: upperVtKwh as number,
       upperNtKwh: upperNtKwh as number,
+      ...(typeof b.sourcePdfId === "string" ? { sourcePdfId: b.sourcePdfId } : {}),
+      ...(typeof b.sourcePdfName === "string"
+        ? { sourcePdfName: b.sourcePdfName }
+        : {}),
     },
   };
 }

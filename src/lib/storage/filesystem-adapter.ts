@@ -1,13 +1,17 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Reading, TariffConfig } from "@/lib/calc/types";
+import type { Reading, TariffConfig, SyncLog, InboxPdf } from "@/lib/calc/types";
 import { randomUUID } from "node:crypto";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
 interface FilesystemState {
   readings: Reading[];
   tariffConfig: Partial<TariffConfig> | null;
+  settings: Record<string, string>;
+  oauth: { refreshToken?: string } | null;
+  syncLogs: SyncLog[];
+  inboxPdfs: InboxPdf[];
 }
 
 /**
@@ -31,9 +35,20 @@ export class FilesystemAdapter extends StorageAdapter {
       return {
         readings: parsed.readings ?? [],
         tariffConfig: parsed.tariffConfig ?? null,
+        settings: parsed.settings ?? {},
+        oauth: parsed.oauth ?? null,
+        syncLogs: parsed.syncLogs ?? [],
+        inboxPdfs: parsed.inboxPdfs ?? [],
       };
     } catch {
-      return { readings: [], tariffConfig: null };
+      return {
+        readings: [],
+        tariffConfig: null,
+        settings: {},
+        oauth: null,
+        syncLogs: [],
+        inboxPdfs: [],
+      };
     }
   }
 
@@ -112,5 +127,110 @@ export class FilesystemAdapter extends StorageAdapter {
     state.tariffConfig = { ...state.tariffConfig, ...config };
     await this.write(state);
     return state.tariffConfig;
+  }
+
+  // ---- settings ----------------------------------------------------------
+
+  async getSetting(key: string): Promise<string | null> {
+    const state = await this.read();
+    return state.settings[key] ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    const state = await this.read();
+    state.settings[key] = value;
+    await this.write(state);
+  }
+
+  // ---- Gmail OAuth -------------------------------------------------------
+
+  async getOAuthState(): Promise<{ refreshToken?: string } | null> {
+    const state = await this.read();
+    return state.oauth?.refreshToken ? { refreshToken: state.oauth.refreshToken } : null;
+  }
+
+  async setOAuthState(stateObj: { refreshToken: string }): Promise<void> {
+    const state = await this.read();
+    state.oauth = stateObj;
+    await this.write(state);
+  }
+
+  async clearOAuthState(): Promise<void> {
+    const state = await this.read();
+    state.oauth = null;
+    await this.write(state);
+  }
+
+  // ---- sync logs ---------------------------------------------------------
+
+  async addSyncLog(
+    log: Omit<SyncLog, "id" | "timestamp">,
+  ): Promise<SyncLog> {
+    const state = await this.read();
+    const entry: SyncLog = { id: randomUUID(), timestamp: new Date().toISOString(), ...log };
+    state.syncLogs.push(entry);
+    await this.write(state);
+    return entry;
+  }
+
+  async listSyncLogs(limit = 50): Promise<SyncLog[]> {
+    const state = await this.read();
+    return state.syncLogs
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, limit);
+  }
+
+  async clearSyncLogs(): Promise<void> {
+    const state = await this.read();
+    state.syncLogs = [];
+    await this.write(state);
+  }
+
+  // ---- inbox PDFs --------------------------------------------------------
+
+  async addInboxPdf(
+    pdf: Omit<InboxPdf, "id" | "downloadedAt">,
+  ): Promise<InboxPdf> {
+    const state = await this.read();
+    const entry: InboxPdf = {
+      id: randomUUID(),
+      downloadedAt: new Date().toISOString(),
+      ...pdf,
+    };
+    state.inboxPdfs.push(entry);
+    await this.write(state);
+    return entry;
+  }
+
+  async listInboxPdfs(): Promise<InboxPdf[]> {
+    const state = await this.read();
+    return state.inboxPdfs.sort((a, b) => b.downloadedAt.localeCompare(a.downloadedAt));
+  }
+
+  async getInboxPdf(id: string): Promise<InboxPdf | null> {
+    const state = await this.read();
+    return state.inboxPdfs.find((p) => p.id === id) ?? null;
+  }
+
+  async updateInboxPdf(
+    id: string,
+    patch: Partial<InboxPdf>,
+  ): Promise<InboxPdf | null> {
+    const state = await this.read();
+    const found = state.inboxPdfs.find((p) => p.id === id);
+    if (!found) return null;
+    const merged = { ...found, ...patch };
+    state.inboxPdfs = state.inboxPdfs.map((p) => (p.id === id ? merged : p));
+    await this.write(state);
+    return merged;
+  }
+
+  async deleteInboxPdf(id: string): Promise<boolean> {
+    const state = await this.read();
+    const next = state.inboxPdfs.filter((p) => p.id !== id);
+    if (next.length === state.inboxPdfs.length) return false;
+    state.inboxPdfs = next;
+    await this.write(state);
+    return true;
   }
 }

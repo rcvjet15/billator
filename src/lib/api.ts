@@ -1,5 +1,6 @@
-import type { Reading, ReadingInput, SplitResult } from "@/lib/calc/types";
+import type { Reading, ReadingInput, SplitResult, SyncLog, InboxPdf } from "@/lib/calc/types";
 import type { HepParseResult } from "@/lib/parse/hep";
+import type { AppSettings } from "@/lib/settings/types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -57,4 +58,42 @@ export const api = {
       return { result: data.result! };
     });
   },
+
+  getSettings: (): Promise<{ settings: AppSettings }> =>
+    request("/api/settings"),
+
+  updateSettings: (
+    patch: Partial<AppSettings>,
+  ): Promise<{ settings: AppSettings }> =>
+    request("/api/settings", { method: "PUT", body: JSON.stringify(patch) }),
+
+  listSyncLogs: (): Promise<{ logs: SyncLog[] }> =>
+    request("/api/sync/logs"),
+
+  clearSyncLogs: (): Promise<{ ok: boolean }> =>
+    request("/api/sync/logs", { method: "DELETE" }),
+
+  listInbox: (): Promise<{ inbox: InboxPdf[] }> => request("/api/inbox"),
+
+  deleteInboxItem: (id: string): Promise<{ ok: boolean }> =>
+    request(`/api/inbox/${id}`, { method: "DELETE" }),
+
+  runGmailSync: (): Promise<{ outcome: { ok: boolean; found: boolean; files: string[]; status: string } }> =>
+    request("/api/gmail/sync", { method: "POST" }),
+
+  gmailStatus: (): Promise<{
+    enabled: boolean;
+    configured: boolean;
+    authorized: boolean;
+    ready: boolean;
+    pollIntervalMs: number;
+    query: string;
+  }> => request("/api/gmail/status"),
+
+  syncOfficialPrices: (): Promise<{
+    ok: boolean;
+    source: string;
+    tariffs: AppSettings["tariffs"];
+    message: string;
+  }> => request("/api/tariffs/sync", { method: "POST" }),
 };

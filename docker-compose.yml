@@ -1,0 +1,23 @@
+services:
+  billator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: billator:latest
+    container_name: billator
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - STORAGE_MODE=sqlite
+      - DB_PATH=/app/data/billator.db
+    volumes:
+      # Persist the SQLite DB + inbox PDFs across rebuilds/restarts.
+      - billator_data:/app/data
+    restart: unless-stopped
+    # Builds natively on the ARM64 Pi (no cross-build needed).
+    platform: linux/arm64
+
+volumes:
+  billator_data:

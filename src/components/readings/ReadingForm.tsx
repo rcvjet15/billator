@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
 import { parseHepInvoice } from "@/lib/parse/hep";
 import type { HepParseResult } from "@/lib/parse/hep";
-import type { ReadingInput } from "@/lib/calc/types";
+import type { ReadingInput, InboxPdf } from "@/lib/calc/types";
 
 interface ReadingFormProps {
   onSubmit: (input: ReadingInput) => Promise<unknown>;
@@ -42,6 +42,16 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inbox, setInbox] = useState<InboxPdf[]>([]);
+  const [sourcePdfId, setSourcePdfId] = useState<string | undefined>(undefined);
+
+  // Load the invoice inbox (downloaded PDFs) to pick from.
+  useEffect(() => {
+    api
+      .listInbox()
+      .then((res) => setInbox(res.inbox))
+      .catch(() => undefined);
+  }, []);
 
   const set = (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -50,7 +60,11 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
     (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [k]: num(e.target.value) }));
 
-  const applyParseResult = (r: HepParseResult) => {
+  const applyParseResult = (
+    r: HepParseResult,
+    source?: { id: string; name: string },
+  ) => {
+    setSourcePdfId(source?.id);
     setForm((f) => ({
       ...f,
       periodStart: r.periodStart ?? f.periodStart,
@@ -60,6 +74,9 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
       hepTotalSupply: r.hepTotalSupply ?? f.hepTotalSupply,
       hepFees: r.hepFees ?? f.hepFees,
       hepGrandTotal: r.hepGrandTotal ?? f.hepGrandTotal,
+      ...(source
+        ? { sourcePdfId: source.id, sourcePdfName: source.name }
+        : {}),
     }));
   };
 
@@ -81,10 +98,29 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
     }
   };
 
+  /** Parse a downloaded inbox PDF (fetched from the local API) and prefill. */
+  const handleParseInbox = async (item: InboxPdf) => {
+    setParsing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/inbox/${item.id}/download`);
+      if (!res.ok) throw new Error("Could not fetch inbox PDF.");
+      const blob = await res.blob();
+      const file = new File([blob], item.filename, { type: "application/pdf" });
+      const { result } = await api.parseHepPdf(file);
+      applyParseResult(result, { id: item.id, name: item.filename });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const reset = () => {
     setForm(empty);
     setRawText("");
     setPdfFile(null);
+    setSourcePdfId(undefined);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -107,6 +143,32 @@ export function ReadingForm({ onSubmit }: ReadingFormProps) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
+      {/* Pick a downloaded invoice PDF from the Gmail inbox to parse */}
+      {inbox.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+          <span className="text-sm font-medium">From your invoice inbox</span>
+          <div className="flex flex-wrap gap-2">
+            {inbox.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                variant={sourcePdfId === item.id ? "primary" : "outline"}
+                size="sm"
+                onClick={() => void handleParseInbox(item)}
+                loading={parsing && sourcePdfId === item.id}
+              >
+                {item.filename}
+              </Button>
+            ))}
+          </div>
+          {sourcePdfId && (
+            <span className="text-xs text-muted-foreground">
+              Review the values below, then save. Source: {form.sourcePdfName}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Prefill from PDF or pasted text (numbers only; file is not stored) */}
       <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -23,6 +23,9 @@ export interface Reading {
   upperNtKwh: number;
   createdAt: string;
   updatedAt: string;
+  /** Optional reference to the invoice PDF that produced this reading. */
+  sourcePdfId?: string;
+  sourcePdfName?: string;
 }
 
 export interface ReadingInput {
@@ -35,6 +38,8 @@ export interface ReadingInput {
   hepGrandTotal: number;
   upperVtKwh: number;
   upperNtKwh: number;
+  sourcePdfId?: string;
+  sourcePdfName?: string;
 }
 
 export interface TariffConfig {
@@ -110,4 +115,50 @@ export interface SplitResult {
   ground: FloorResult;
   upper: FloorResult;
   grandTotal: number;
+}
+
+export type SyncTrigger = "sync" | "cron" | "manual";
+
+export interface SyncLog {
+  id: string;
+  timestamp: string;
+  ok: boolean;
+  found: boolean;
+  messageId?: string;
+  downloadedFile?: string;
+  error?: string;
+  status: string;
+  trigger: SyncTrigger;
+}
+
+export interface InboxPdf {
+  id: string;
+  filename: string;
+  path: string;
+  msgId?: string;
+  downloadedAt: string;
+  parsedAt?: string;
+  readingId?: string;
+  parsePreview?: HepParsePreview;
+}
+
+export interface HepParsePreview {
+  periodStart?: string;
+  periodEnd?: string;
+  hepVtKwh?: number;
+  hepNtKwh?: number;
+  hepTotalSupply?: number;
+  hepFees?: number;
+  hepGrandTotal?: number;
+  hepOverageKwh?: number;
+  confidence: number;
+}
+
+export interface GmailAuthState {
+  refreshToken?: string;
+  accessToken?: string;
+  expiry?: number;
+  email?: string;
+  createdAt: string;
+  updatedAt: string;
 }
