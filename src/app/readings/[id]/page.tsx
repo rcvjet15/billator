@@ -6,12 +6,11 @@ import Link from "next/link";
 import { Button, Spinner } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { ReadingForm } from "@/components/readings/ReadingForm";
 import { useReadings } from "@/hooks/useReadings";
 import { api } from "@/lib/api";
 import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
 import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
-import type { Reading, ReadingInput, TariffConfig } from "@/lib/calc/types";
+import type { Reading, TariffConfig } from "@/lib/calc/types";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -31,8 +30,7 @@ export default function ReadingDetailPage({
   const [reading, setReading] = useState<Reading | null>(null);
   const [tariff, setTariff] = useState<TariffConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const { update, remove } = useReadings();
+  const { remove } = useReadings();
 
   useEffect(() => {
     void (async () => {
@@ -88,7 +86,9 @@ export default function ReadingDetailPage({
               <Button variant="outline">Download PDF</Button>
             </a>
           )}
-          <Button onClick={() => setEditMode((v) => !v)}>{editMode ? "Cancel edit" : "Edit / reimport"}</Button>
+          <Link href={`/readings/edit/${reading.id}`}>
+            <Button variant="outline">Edit / reimport</Button>
+          </Link>
           <Button
             variant="destructive"
             onClick={() => {
@@ -99,21 +99,6 @@ export default function ReadingDetailPage({
           </Button>
         </div>
       </div>
-
-      {editMode && (
-        <Card>
-          <CardHeader
-            title="Edit / reimport"
-            subtitle="Re-import the invoice PDF (overwrites HEP fields) and/or enter the floor monitor readings. The other part stays as-is."
-          />
-          <ReadingForm
-            key={`edit-${reading.id}`}
-            initial={reading}
-            onSubmit={async () => {}}
-            onUpdate={update as (id: string, input: Partial<ReadingInput>) => Promise<unknown>}
-          />
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Invoice / HEP data */}

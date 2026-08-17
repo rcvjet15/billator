@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Eye, FileText, Pencil, Trash2 } from "lucide-react";
 
 import { Button, Spinner } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/DataTable";
+import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { useReadings } from "@/hooks/useReadings";
 import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
@@ -93,33 +95,26 @@ export default function ReadingsPage() {
         render: (r) => (
           <div className="flex items-center gap-1">
             <Link href={`/readings/${r.id}`}>
-              <Button variant="outline" size="sm">
-                Details
-              </Button>
+              <IconButton label="Details" icon={<Eye className="size-4" />} />
             </Link>
             {r.sourcePdfId && (
               <a href={`/api/inbox/${r.sourcePdfId}/download`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="sm">
-                  PDF
-                </Button>
+                <IconButton label="Download PDF" icon={<FileText className="size-4" />} />
               </a>
             )}
-            <Link href={`/readings/${r.id}`}>
-              <Button variant="ghost" size="sm">
-                Edit
-              </Button>
+            <Link href={`/readings/edit/${r.id}`}>
+              <IconButton label="Edit" icon={<Pencil className="size-4" />} />
             </Link>
-            <Button
-              variant="ghost"
-              size="sm"
+            <IconButton
+              label="Delete"
+              tone="danger"
+              icon={<Trash2 className="size-4" />}
               onClick={() => {
                 if (window.confirm(`Delete reading ${formatDate(r.periodStart)} → ${formatDate(r.periodEnd)}?`)) {
                   void remove(r.id);
                 }
               }}
-            >
-              Delete
-            </Button>
+            />
           </div>
         ),
       },
