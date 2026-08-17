@@ -22,6 +22,7 @@ type ReadingRow = {
   upper_vt_kwh: number;
   upper_nt_kwh: number;
   status: string | null;
+  origin: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -38,7 +39,7 @@ type TariffRow = {
 };
 
 const READING_ROWS =
-  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,status,created_at,updated_at";
+  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,status,origin,created_at,updated_at";
 
 function toReading(row: ReadingRow): Reading {
   return {
@@ -53,6 +54,7 @@ function toReading(row: ReadingRow): Reading {
     upperVtKwh: row.upper_vt_kwh,
     upperNtKwh: row.upper_nt_kwh,
     ...(row.status ? { status: row.status as Reading["status"] } : {}),
+    ...(row.origin ? { origin: row.origin as Reading["origin"] } : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -122,6 +124,7 @@ export class SupabaseAdapter extends StorageAdapter {
       upperNtKwh?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
+      origin?: Readonly<Reading>["origin"];
     },
   ): Promise<Reading> {
     const { data, error } = await this.client
@@ -139,6 +142,7 @@ export class SupabaseAdapter extends StorageAdapter {
         source_pdf_id: input.sourcePdfId ?? null,
         source_pdf_name: input.sourcePdfName ?? null,
         status: computeSupabaseStatus(input),
+        origin: input.origin ?? (input.sourcePdfId ? "parsed" : "manual"),
       })
       .select(READING_ROWS)
       .single();

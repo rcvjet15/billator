@@ -12,6 +12,8 @@ export interface SemesterBlock {
 
 export type ReadingStatus = "pending" | "complete";
 
+export type ReadingOrigin = "parsed" | "manual";
+
 export interface Reading {
   id: string;
   periodStart: string;
@@ -27,6 +29,10 @@ export interface Reading {
   updatedAt: string;
   /** A reading is complete when it has invoice (HEP) data and upper-floor data. */
   status?: ReadingStatus;
+  /** How this reading came to be: via PDF parse or manual entry. */
+  origin?: ReadingOrigin;
+  /** Estimated upper-floor cost for this reading (set by the list route). */
+  upperCost?: number;
   /** Optional reference to the invoice PDF that produced this reading. */
   sourcePdfId?: string;
   sourcePdfName?: string;
@@ -44,6 +50,7 @@ export interface ReadingInput {
   upperNtKwh?: number;
   sourcePdfId?: string;
   sourcePdfName?: string;
+  origin?: ReadingOrigin;
 }
 
 export interface TariffConfig {

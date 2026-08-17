@@ -82,6 +82,7 @@ export class FilesystemAdapter extends StorageAdapter {
       upperNtKwh?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
+      origin?: Reading["origin"];
     },
   ): Promise<Reading> {
     const state = await this.read();
@@ -96,6 +97,7 @@ export class FilesystemAdapter extends StorageAdapter {
       upperVtKwh: input.upperVtKwh ?? 0,
       upperNtKwh: input.upperNtKwh ?? 0,
       status: computeFsStatus(input),
+      origin: input.origin ?? (input.sourcePdfId ? "parsed" : "manual"),
       id: randomUUID(),
       createdAt: now,
       updatedAt: now,

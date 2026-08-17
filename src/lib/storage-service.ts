@@ -73,6 +73,7 @@ class StorageService {
       upperNtKwh?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
+      origin?: Reading["origin"];
     },
   ): Promise<Reading> {
     return this.adapter.createReading(input);

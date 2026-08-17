@@ -1,18 +1,138 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 
 import { ReadingForm } from "@/components/readings/ReadingForm";
-import { ReadingList } from "@/components/readings/ReadingList";
-import { Card } from "@/components/ui/Card";
 import { Button, Spinner } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/DataTable";
+import { Input } from "@/components/ui/Input";
 import { useReadings } from "@/hooks/useReadings";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
 import type { Reading, ReadingInput } from "@/lib/calc/types";
 
 export default function ReadingsPage() {
   const { readings, loading, error, add, update, remove } = useReadings();
   const [editing, setEditing] = useState<Reading | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const columns: DataTableColumn<Reading>[] = useMemo(
+    () => [
+      {
+        key: "period",
+        header: "Period",
+        sortValue: (r) => r.periodStart,
+        render: (r) => (
+          <span className="whitespace-nowrap">
+            {formatDate(r.periodStart)} → {formatDate(r.periodEnd)}
+          </span>
+        ),
+      },
+      { key: "vt", header: "VT", sortValue: (r) => r.hepVtKwh, render: (r) => formatKwh(r.hepVtKwh) },
+      { key: "nt", header: "NT", sortValue: (r) => r.hepNtKwh, render: (r) => formatKwh(r.hepNtKwh) },
+      {
+        key: "upperVt",
+        header: "Upper VT",
+        sortValue: (r) => r.upperVtKwh,
+        render: (r) => formatKwh(r.upperVtKwh),
+        hideBelow: "md",
+      },
+      {
+        key: "upperNt",
+        header: "Upper NT",
+        sortValue: (r) => r.upperNtKwh,
+        render: (r) => formatKwh(r.upperNtKwh),
+        hideBelow: "md",
+      },
+      {
+        key: "amount",
+        header: "Amount",
+        sortValue: (r) => r.hepGrandTotal,
+        render: (r) => formatEur(r.hepGrandTotal),
+      },
+      {
+        key: "upperCost",
+        header: "Upper split",
+        sortValue: (r) => r.upperCost ?? 0,
+        render: (r) => (r.upperCost != null ? formatEur(r.upperCost) : "—"),
+        hideBelow: "md",
+      },
+      {
+        key: "created",
+        header: "Created",
+        sortValue: (r) => r.createdAt,
+        render: (r) => <span className="whitespace-nowrap">{formatDateWithTime(r.createdAt)}</span>,
+        hideBelow: "md",
+      },
+      {
+        key: "origin",
+        header: "Source",
+        sortValue: (r) => r.origin ?? "",
+        render: (r) =>
+          r.origin === "parsed" ? (
+            <Badge tone="info">parsed</Badge>
+          ) : (
+            <Badge>manual</Badge>
+          ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        sortValue: (r) => r.status ?? "",
+        render: (r) =>
+          r.status === "complete" ? (
+            <Badge tone="success">complete</Badge>
+          ) : (
+            <Badge tone="warning">incomplete</Badge>
+          ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        render: (r) => (
+          <div className="flex items-center gap-1">
+            <Link href={`/readings/${r.id}`}>
+              <Button variant="outline" size="sm">
+                Details
+              </Button>
+            </Link>
+            {r.sourcePdfId && (
+              <a href={`/api/inbox/${r.sourcePdfId}/download`} target="_blank" rel="noopener noreferrer">
+                <Button variant="ghost" size="sm">
+                  PDF
+                </Button>
+              </a>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+              Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (window.confirm(`Delete reading ${formatDate(r.periodStart)} → ${formatDate(r.periodEnd)}?`)) {
+                  void remove(r.id);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [remove],
+  );
+
+  const filters: DataTableFilter<Reading>[] = useMemo(() => {
+    const list: DataTableFilter<Reading>[] = [];
+    if (from) list.push({ key: "period", test: (r) => r.periodStart >= from });
+    if (to) list.push({ key: "period", test: (r) => r.periodStart <= to });
+    return list;
+  }, [from, to]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,8 +163,8 @@ export default function ReadingsPage() {
         />
         {editing && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Editing {formatDate(editing.periodStart)} → {formatDate(editing.periodEnd)}. Only the fields
-            you change are updated; the other part stays as-is.
+            Editing {formatDate(editing.periodStart)} → {formatDate(editing.periodEnd)}.
+            Re-import the PDF and/or enter monitor readings, then Save. The other part stays as-is.
           </p>
         )}
       </Card>
@@ -58,14 +178,29 @@ export default function ReadingsPage() {
         ) : error ? (
           <Card className="border-red-200 bg-red-50 text-red-800">{error}</Card>
         ) : (
-          <ReadingList
-            readings={readings}
-            onDelete={remove}
-            onContinue={(r) => {
-              setEditing(r);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
+          <Card>
+            <div className="mb-3 flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">Period from</label>
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">Period to</label>
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              </div>
+            </div>
+            <DataTable
+              rows={readings}
+              columns={columns}
+              filters={filters}
+              rowKey={(r) => r.id}
+              emptyMessage="No readings match the current filters."
+            />
+            <p className="mt-3 text-xs text-muted-foreground">
+              “Upper split” is an estimate for that reading (base tariffs × share, incl. VAT) and excludes the
+              semester-level 35% overage penalty — see /split for the full breakdown.
+            </p>
+          </Card>
         )}
       </div>
     </div>

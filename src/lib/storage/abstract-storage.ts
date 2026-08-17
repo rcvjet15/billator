@@ -32,6 +32,7 @@ export abstract class StorageAdapter {
       upperNtKwh?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
+      origin?: Reading["origin"];
     },
   ): Promise<Reading>;
 

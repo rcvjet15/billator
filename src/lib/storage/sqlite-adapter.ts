@@ -27,6 +27,7 @@ type ReadingRow = {
   source_pdf_id: string | null;
   source_pdf_name: string | null;
   status: string | null;
+  origin: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -139,12 +140,15 @@ export class SqliteAdapter extends StorageAdapter {
       );
     `);
 
-    // Add `status` column if the table predates it (idempotent migration).
+    // Add `status` / `origin` columns if the table predates them (idempotent).
     const cols = this.db
       .prepare("PRAGMA table_info(readings)")
       .all() as unknown as { name: string }[];
     if (!cols.some((c) => c.name === "status")) {
       this.db.exec(`ALTER TABLE readings ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`);
+    }
+    if (!cols.some((c) => c.name === "origin")) {
+      this.db.exec(`ALTER TABLE readings ADD COLUMN origin TEXT NOT NULL DEFAULT 'manual'`);
     }
   }
 
@@ -169,6 +173,7 @@ export class SqliteAdapter extends StorageAdapter {
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       ...(r.status ? { status: r.status as Reading["status"] } : {}),
+      ...(r.origin ? { origin: r.origin as Reading["origin"] } : {}),
       ...(r.source_pdf_id
         ? { sourcePdfId: r.source_pdf_id, sourcePdfName: r.source_pdf_name ?? undefined }
         : {}),
@@ -200,17 +205,19 @@ export class SqliteAdapter extends StorageAdapter {
       upperNtKwh?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
+      origin?: Reading["origin"];
     },
   ): Promise<Reading> {
     const now = new Date().toISOString();
     const id = randomUUID();
     const status = computeReadingStatus(input);
+    const origin = input.origin ?? (input.sourcePdfId ? "parsed" : "manual");
     this.db
       .prepare(
         `INSERT INTO readings (id, period_start, period_end, hep_vt_kwh, hep_nt_kwh,
           hep_total_supply, hep_fees, hep_grand_total, upper_vt_kwh, upper_nt_kwh,
-          source_pdf_id, source_pdf_name, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          source_pdf_id, source_pdf_name, status, origin, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -226,6 +233,7 @@ export class SqliteAdapter extends StorageAdapter {
         input.sourcePdfId ?? null,
         input.sourcePdfName ?? null,
         status,
+        origin,
         now,
         now,
       );
@@ -242,7 +250,7 @@ export class SqliteAdapter extends StorageAdapter {
         .prepare(
           `UPDATE readings SET period_start=?, period_end=?, hep_vt_kwh=?, hep_nt_kwh=?,
             hep_total_supply=?, hep_fees=?, hep_grand_total=?, upper_vt_kwh=?, upper_nt_kwh=?,
-            source_pdf_id=?, source_pdf_name=?, status=?, updated_at=?
+            source_pdf_id=?, source_pdf_name=?, status=?, origin=?, updated_at=?
            WHERE id=?`,
         )
         .run(
@@ -258,6 +266,7 @@ export class SqliteAdapter extends StorageAdapter {
           merged.sourcePdfId ?? null,
           merged.sourcePdfName ?? null,
           status,
+          merged.origin ?? "manual",
           merged.updatedAt,
           id,
         );

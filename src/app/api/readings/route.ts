@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
+import { getTariffConfig } from "@/lib/config-service";
 import type { ReadingInput } from "@/lib/calc/types";
 import { StorageService } from "@/lib/storage-service";
 
@@ -37,6 +39,7 @@ function validateInput(body: unknown): { input: ReadingInput } | { error: string
   }
   if (typeof b.sourcePdfId === "string") input.sourcePdfId = b.sourcePdfId;
   if (typeof b.sourcePdfName === "string") input.sourcePdfName = b.sourcePdfName;
+  if (b.origin === "parsed" || b.origin === "manual") input.origin = b.origin;
 
   return { input };
 }
@@ -44,8 +47,16 @@ function validateInput(body: unknown): { input: ReadingInput } | { error: string
 export async function GET() {
   try {
     const storage = StorageService.getInstance();
-    const readings = await storage.listReadings();
-    return NextResponse.json({ readings });
+    const [readings, tariff] = await Promise.all([
+      storage.listReadings(),
+      getTariffConfig().catch(() => null),
+    ]);
+    // Enrich each reading with an estimated upper-floor cost for the grid.
+    const enriched = readings.map((r) => ({
+      ...r,
+      upperCost: tariff ? estimateReadingUpperCost(r, tariff) : null,
+    }));
+    return NextResponse.json({ readings: enriched });
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message || "Failed to list readings." },
