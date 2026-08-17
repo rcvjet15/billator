@@ -38,11 +38,14 @@ export default function SettingsPage() {
     if (updated) setDraft(updated);
   };
 
-  // "Load model rates": return the selected model's baseline tariffs so the
+  // "Load model rates": return the given model's baseline tariffs so the
   // editable tariff form can be seeded.
-  const loadModelRates = (): AppSettings["tariffs"] => {
-    return baselineForModel(settings?.hepSync.tariffModel ?? "Bijeli");
-  };
+  const modelRates = (model: string): AppSettings["tariffs"] =>
+    baselineForModel(model);
+
+  // Persist the selected tariff model (HEP sync setting).
+  const setModel = (model: string) =>
+    void persist({ hepSync: { ...(settings?.hepSync ?? { tariffModel: "Bijeli" }), tariffModel: model } } as Partial<AppSettings>);
 
   if (loading && !settings) {
     return (
@@ -258,8 +261,10 @@ export default function SettingsPage() {
       {active === "tariffs" && (
         <TariffTab
           tariffs={current.tariffs}
+          tariffModel={current.hepSync.tariffModel}
           saving={saving}
-          onLoadModel={loadModelRates}
+          onModelChange={setModel}
+          onLoadModel={modelRates}
           onSave={(patch) =>
             void persist({ tariffs: { ...current.tariffs, ...patch } } as Partial<AppSettings>)
           }
@@ -302,14 +307,18 @@ export default function SettingsPage() {
 
 function TariffTab({
   tariffs,
+  tariffModel,
   saving,
   onSave,
   onLoadModel,
+  onModelChange,
 }: {
   tariffs: AppSettings["tariffs"];
+  tariffModel: string;
   saving: boolean;
   onSave: (patch: Partial<AppSettings["tariffs"]>) => void;
-  onLoadModel: () => AppSettings["tariffs"];
+  onLoadModel: (model: string) => AppSettings["tariffs"];
+  onModelChange: (model: string) => void;
 }) {
   const [draft, setDraft] = useState(tariffs);
   const field = (key: keyof AppSettings["tariffs"], label: string, step: string) => (
@@ -321,12 +330,38 @@ function TariffTab({
       onChange={(v) => setDraft((d) => ({ ...d, [key]: Number(v) }))}
     />
   );
+  const models = ["Bijeli", "Plavi", "Crveni", "Cmi"];
   return (
     <Card>
       <CardHeader
         title="Tariffs"
         subtitle="HEP energy rates, fees, VAT, and the 3,000 kWh overage rule."
       />
+      <div className="mb-4 flex flex-col gap-1">
+        <span className="text-sm font-medium">
+          Tariff model{" "}
+          <span className="text-muted-foreground">(Bijeli is the default, from your invoice)</span>
+        </span>
+        <select
+          value={models.includes(tariffModel) ? tariffModel : "Bijeli"}
+          onChange={(e) => {
+            const m = e.target.value;
+            setDraft(onLoadModel(m));
+            onModelChange(m);
+          }}
+          className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-64"
+        >
+          {models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Choosing a model fills the rates below; you can still edit any value.
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         {field("energyRateVt", "Energy rate VT (€/kWh)", "0.0001")}
         {field("energyRateNt", "Energy rate NT (€/kWh)", "0.0001")}
@@ -336,15 +371,12 @@ function TariffTab({
         {field("overageThresholdKwh", "Overage threshold (kWh)", "1")}
         {field("overageMultiplier", "Overage multiplier", "0.0001")}
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4">
         <Button
           onClick={() => onSave(draft as Partial<AppSettings["tariffs"]>)}
           loading={saving}
         >
           Save tariffs
-        </Button>
-        <Button variant="outline" onClick={() => setDraft(onLoadModel())}>
-          Load model rates
         </Button>
       </div>
     </Card>
