@@ -207,6 +207,31 @@ export default function SettingsPage() {
               />
               Fall back to bundled baseline template
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium">
+                Tariff model{" "}
+                <span className="text-muted-foreground">
+                  (default Bijeli, from your July invoice)
+                </span>
+              </span>
+              <select
+                value={current.hepSync.tariffModel}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  patchDraft((d) => ({
+                    ...d,
+                    hepSync: { ...d.hepSync, tariffModel: v },
+                  }));
+                }}
+                className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {["Bijeli", "Plavi", "Crveni", "Cmi"].map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="flex gap-2">
               <Button
                 onClick={() =>

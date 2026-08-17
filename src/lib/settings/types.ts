@@ -29,6 +29,8 @@ export interface HepSyncSettings {
   sourceUrl: string;
   /** When true, fall back to the bundled baseline template. */
   useBaselineFallback: boolean;
+  /** Which HEP household tariff model to read (e.g. "Bijeli", "Plavi"). */
+  tariffModel: string;
 }
 
 export interface StorageSettings {

@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { SecretStore } from "@/lib/security/secret";
-import { PRICE_BASELINE, fetchPricingFromUrl } from "@/lib/pricing-baseline";
+import {
+  PRICE_BASELINE,
+  baselineForModel,
+  fetchPricingFromUrl,
+  listTariffModels,
+} from "@/lib/pricing-baseline";
 
 describe("SecretStore", () => {
   const original = process.env.GMAIL_ENCRYPTION_KEY;
@@ -35,5 +40,24 @@ describe("pricing baseline", () => {
 
   it("returns null when no URL is configured", async () => {
     expect(await fetchPricingFromUrl("")).toBeNull();
+  });
+});
+
+describe("model-aware tariff baseline", () => {
+  it("lists the HEP household models", () => {
+    expect(listTariffModels()).toEqual(
+      expect.arrayContaining(["Bijeli", "Plavi", "Crveni", "Cmi"]),
+    );
+  });
+
+  it("defaults to Bijeli (the July-invoice model) with the known VT/NT rates", () => {
+    const b = baselineForModel("Bijeli");
+    expect(b.energyRateVt).toBeCloseTo(0.097189, 5);
+    expect(b.energyRateNt).toBeCloseTo(0.047688, 5);
+    expect(b.fixedFee).toBeCloseTo(0.982, 3);
+  });
+
+  it("falls back to Bijeli for an unknown model", () => {
+    expect(baselineForModel("Nope")).toEqual(PRICE_BASELINE);
   });
 });

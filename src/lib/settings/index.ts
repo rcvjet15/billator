@@ -16,6 +16,7 @@ const DEFAULTS: AppSettings = {
   hepSync: {
     sourceUrl: "",
     useBaselineFallback: true,
+    tariffModel: "Bijeli",
   },
   storage: {
     pdfDir: "./data/inbox",
@@ -73,6 +74,8 @@ export async function loadSettings(): Promise<AppSettings> {
     useBaselineFallback:
       bool(await storage.getSetting(`${KEY_PREFIX}hepSync.useBaselineFallback`)) ??
       s.hepSync.useBaselineFallback,
+    tariffModel:
+      (await storage.getSetting(`${KEY_PREFIX}hepSync.tariffModel`)) || s.hepSync.tariffModel,
   };
 
   s.storage = {
@@ -121,6 +124,8 @@ export async function saveSettings(
     if (h.sourceUrl !== undefined) set(`${KEY_PREFIX}hepSync.sourceUrl`, h.sourceUrl);
     if (h.useBaselineFallback !== undefined)
       set(`${KEY_PREFIX}hepSync.useBaselineFallback`, h.useBaselineFallback);
+    if (h.tariffModel !== undefined)
+      set(`${KEY_PREFIX}hepSync.tariffModel`, h.tariffModel);
   }
 
   if (patch.storage) {
