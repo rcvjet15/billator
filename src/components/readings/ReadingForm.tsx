@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -202,14 +203,18 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
 
       {/* Prefill from PDF or pasted text (numbers only; file is not stored) */}
       <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-muted-foreground"
-            aria-label="Upload HEP PDF"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+            <input
+              type="file"
+              accept="application/pdf"
+              className="sr-only"
+              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+              aria-label="Choose HEP PDF"
+            />
+            <FileText className="size-4" />
+            {pdfFile ? pdfFile.name : "Choose PDF"}
+          </label>
           <Button
             type="button"
             variant="outline"
