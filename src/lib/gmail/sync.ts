@@ -40,10 +40,28 @@ async function getAttachmentBytes(
   return Buffer.from(data, "base64url");
 }
 
+/** A supported invoice attachment (PDF, or BMP image like "slika.bmp"). */
+function isInvoiceAttachment(filename: string | null | undefined): boolean {
+  return !!filename && /\.(pdf|bmp|png|jpe?g)$/i.test(filename);
+}
+
+/** Whether a message download would duplicate the given Gmail message id. */
+async function wasMsgPulled(
+  storage: ReturnType<typeof StorageService["getInstance"]>,
+  messageId: string,
+): Promise<boolean> {
+  const inbox = await storage.listInboxPdfs();
+  return inbox.some((p) => p.msgId === messageId);
+}
+
 /**
- * One sync pass: find unread HEP emails with PDF attachments, download the
- * PDFs, register them in the inbox, mark the message read, and write a
- * sync log entry.
+ * One sync pass: find HEP emails (by the configured sender/query) with invoice
+ * attachments, download them, register them in the inbox, and write a sync log
+ * entry.
+ *
+ * Deduplication is done locally by Gmail message id — an email is pulled at
+ * most once even if it was already read (the query deliberately does NOT rely
+ * on `is:unread`). Each processed email is marked read as a convenience.
  */
 export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcome> {
   const storage = StorageService.getInstance();
@@ -70,7 +88,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
     const list = await gmail.users.messages.list({
       userId: "me",
       q: settings.gmail.query,
-      maxResults: 10,
+      maxResults: 20,
     });
     const messages = list.data.messages ?? [];
 
@@ -78,7 +96,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
       const log = await logSync(storage, {
         ok: true,
         found: false,
-        status: "No new bills found",
+        status: "No bills matched the query",
         trigger,
       });
       return { ok: true, found: false, files: [], messageId: log.messageId, status: log.status };
@@ -86,9 +104,17 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
 
     const files: string[] = [];
     let downloadedCount = 0;
+    let skippedCount = 0;
 
     for (const msg of messages) {
       const messageId = msg.id!;
+
+      // Skip emails already pulled in prior runs (local dedup by message id).
+      if (await wasMsgPulled(storage, messageId)) {
+        skippedCount += 1;
+        continue;
+      }
+
       const detail = await gmail.users.messages.get({
         userId: "me",
         id: messageId,
@@ -96,16 +122,18 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         metadataHeaders: ["From", "Subject"],
       });
 
-      // Find PDF attachments via the included payload part.
       const parts = detail.data.payload?.parts ?? [];
-      const pdfParts = parts.filter(
-        (p) => p.filename && /\.pdf$/i.test(p.filename) && p.body?.attachmentId,
+      const attachments = parts.filter(
+        (p) => isInvoiceAttachment(p.filename) && p.body?.attachmentId,
       );
 
-      if (pdfParts.length === 0) continue;
+      if (attachments.length === 0) continue;
 
-      for (const part of pdfParts) {
-        const filename = sanitizeFilename(part.filename || `invoice-${messageId}.pdf`);
+      for (const part of attachments) {
+        const ext = path.extname(part.filename || "pdf").toLowerCase();
+        const filename = sanitizeFilename(
+          part.filename || `invoice-${messageId}.${ext || "pdf"}`,
+        );
         const bytes = await getAttachmentBytes(
           gmail,
           "me",
@@ -116,10 +144,11 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         await writeFile(absPath, bytes);
         files.push(path.join(settings.storage.inboxDir, filename));
 
-        // Auto-parse the invoice if enabled; store preview + period on inbox.
+        // Auto-parse only works for PDFs. BMP/PNG/JPEG images are stored as
+        // records but not parsed (they'd need OCR).
         let parsePreview;
         let parsedAt;
-        if (settings.gmail.autoParse) {
+        if (settings.gmail.autoParse && ext === ".pdf") {
           const r = await parseHepPdfBuffer(bytes);
           if (r && r.confidence > 0) {
             parsePreview = {
@@ -149,18 +178,26 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         downloadedCount += 1;
       }
 
-      // Mark the message read.
-      await gmail.users.messages.modify({
-        userId: "me",
-        id: messageId,
-        requestBody: { removeLabelIds: ["UNREAD"] },
-      });
+      // Mark the message read (convenience; dedup is by message id, not unread).
+      await gmail.users.messages
+        .modify({
+          userId: "me",
+          id: messageId,
+          requestBody: { removeLabelIds: ["UNREAD"] },
+        })
+        .catch(() => undefined);
     }
 
+    const status =
+      downloadedCount > 0
+        ? `Downloaded ${downloadedCount} attachment(s)`
+        : skippedCount > 0
+          ? `All matched emails already pulled (${skippedCount} skipped)`
+          : "No invoice attachments found";
     const log = await logSync(storage, {
       ok: true,
       found: downloadedCount > 0,
-      status: downloadedCount > 0 ? `Downloaded ${downloadedCount} PDF(s)` : "No PDFs found",
+      status,
       trigger,
     });
 

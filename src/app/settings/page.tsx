@@ -144,7 +144,8 @@ export default function SettingsPage() {
               onChange={(v) =>
                 patchDraft((d) => ({ ...d, gmail: { ...d.gmail, query: v } }))
               }
-              placeholder="from:hep.hr has:attachment is:unread"
+              placeholder="from:elektra.racuni-RI@hep.hr has:attachment"
+              hint="No is:unread — every matching email is pulled at most once (dedup by message id)."
             />
             <Field
               label="Redirect URI"

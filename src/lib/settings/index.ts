@@ -9,7 +9,7 @@ const DEFAULTS: AppSettings = {
     clientId: "",
     hasClientSecret: false,
     pollIntervalMs: 6 * 60 * 60 * 1000, // 6 hours
-    query: "from:hep.hr has:attachment is:unread",
+    query: "from:elektra.racuni-RI@hep.hr has:attachment",
     redirectUri: "http://localhost:3000/api/gmail/auth/callback",
     autoParse: false,
   },
