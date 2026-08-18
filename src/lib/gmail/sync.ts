@@ -45,6 +45,23 @@ function isInvoiceAttachment(filename: string | null | undefined): boolean {
   return !!filename && /\.(pdf|bmp|png|jpe?g)$/i.test(filename);
 }
 
+interface AttachPart {
+  filename?: string | null;
+  body?: { attachmentId?: string };
+  parts?: AttachPart[];
+}
+
+/** Recursively find downloadable attachment parts (including nested). */
+function collectAttachments(parts: AttachPart[] | undefined, out: AttachPart[] = []): AttachPart[] {
+  for (const p of parts ?? []) {
+    if (p.filename && p.body?.attachmentId && isInvoiceAttachment(p.filename)) {
+      out.push(p);
+    }
+    if (p.parts) collectAttachments(p.parts, out);
+  }
+  return out;
+}
+
 /** Whether a message download would duplicate the given Gmail message id. */
 async function wasMsgPulled(
   storage: ReturnType<typeof StorageService["getInstance"]>,
@@ -118,14 +135,13 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
       const detail = await gmail.users.messages.get({
         userId: "me",
         id: messageId,
-        format: "metadata",
-        metadataHeaders: ["From", "Subject"],
+        // "full" includes the payload parts with attachment ids so we can
+        // locate the invoice attachment (metadata alone omits them).
+        format: "full",
       });
 
       const parts = detail.data.payload?.parts ?? [];
-      const attachments = parts.filter(
-        (p) => isInvoiceAttachment(p.filename) && p.body?.attachmentId,
-      );
+      const attachments = collectAttachments(parts as AttachPart[]);
 
       if (attachments.length === 0) continue;
 

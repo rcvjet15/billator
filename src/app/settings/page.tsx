@@ -7,6 +7,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
+import { useToast } from "@/components/ui/Toast";
 import { useSettings } from "@/hooks/useSettings";
 import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
@@ -24,6 +25,7 @@ const tabs: { id: TabId; label: string }[] = [
 
 export default function SettingsPage() {
   const { settings, loading, saving, error, save } = useSettings();
+  const toast = useToast();
   const [active, setActive] = useState<TabId>("gmail");
   const [draft, setDraft] = useState<AppSettings | null>(null);
 
@@ -34,9 +36,21 @@ export default function SettingsPage() {
     if (settings) setDraft((d) => fn(d ?? settings));
   };
 
-  const persist = async (patch: Partial<AppSettings>) => {
-    const updated = await save(patch);
-    if (updated) setDraft(updated);
+  const persist = async (patch: Partial<AppSettings>, label = "Settings") => {
+    try {
+      const updated = await save(patch);
+      if (updated) {
+        setDraft(updated);
+        toast.show("success", `${label} saved.`);
+      } else {
+        toast.show("warning", `${label} save returned no update.`);
+      }
+    } catch (err) {
+      const e = err as Error;
+      console.error(`[settings] save failed: ${e.message}`, e);
+      console.error(e.stack);
+      toast.show("error", `Failed to save ${label}.`, e.message);
+    }
   };
 
   // "Load model rates": return the given model's baseline tariffs so the
@@ -157,7 +171,10 @@ export default function SettingsPage() {
             <div>
               <Button
                 onClick={() =>
-                  void persist({ gmail: current.gmail } as Partial<AppSettings>)
+                  void persist(
+                    { gmail: current.gmail } as Partial<AppSettings>,
+                    "Gmail settings",
+                  )
                 }
                 loading={saving}
               >
@@ -208,7 +225,10 @@ export default function SettingsPage() {
             <div>
               <Button
                 onClick={() =>
-                  void persist({ hepSync: current.hepSync } as Partial<AppSettings>)
+                  void persist(
+                    { hepSync: current.hepSync } as Partial<AppSettings>,
+                    "HEP sync settings",
+                  )
                 }
                 loading={saving}
               >
@@ -249,7 +269,10 @@ export default function SettingsPage() {
             <div>
               <Button
                 onClick={() =>
-                  void persist({ storage: current.storage } as Partial<AppSettings>)
+                  void persist(
+                    { storage: current.storage } as Partial<AppSettings>,
+                    "Storage settings",
+                  )
                 }
                 loading={saving}
               >
@@ -268,7 +291,10 @@ export default function SettingsPage() {
           onModelChange={setModel}
           onLoadModel={modelRates}
           onSave={(patch) =>
-            void persist({ tariffs: { ...current.tariffs, ...patch } } as Partial<AppSettings>)
+            void persist(
+              { tariffs: { ...current.tariffs, ...patch } } as Partial<AppSettings>,
+              "Tariffs",
+            )
           }
         />
       )}
@@ -284,7 +310,10 @@ export default function SettingsPage() {
             }))
           }
           onSave={() =>
-            void persist({ semesters: current.semesters } as Partial<AppSettings>)
+            void persist(
+              { semesters: current.semesters } as Partial<AppSettings>,
+              "Semester cycle",
+            )
           }
         />
       )}
@@ -309,7 +338,10 @@ export default function SettingsPage() {
             <div>
               <Button
                 onClick={() =>
-                  void persist({ advanced: current.advanced } as Partial<AppSettings>)
+                  void persist(
+                    { advanced: current.advanced } as Partial<AppSettings>,
+                    "Advanced settings",
+                  )
                 }
                 loading={saving}
               >
