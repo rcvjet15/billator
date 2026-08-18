@@ -7,10 +7,15 @@ import type { Reading, TariffConfig } from "@/lib/calc/types";
 const TARIFF: TariffConfig = {
   energyRateVt: 0.097189,
   energyRateNt: 0.047688,
+  energyRateJt: 0.091324,
   overageMultiplier: 1.35,
   overageThresholdKwh: 3000,
   fixedFee: 0.982,
-  gridFeeRate: 0.044446,
+  meteringFee: 1.983,
+  transmissionRate: 0.021256,
+  distributionRateVt: 0.044446,
+  distributionRateNt: 0.020514,
+  oieRate: 0.013239,
   vatRate: 0.13,
 };
 
@@ -38,14 +43,12 @@ describe("estimateReadingUpperCost", () => {
     expect(estimateReadingUpperCost(r, TARIFF)).toBe(0);
   });
 
-  it("estimates energy + fixed/grid share + VAT", () => {
+  it("estimates componentized cost with VAT (100% upper floor)", () => {
     // 100% of usage is the upper floor -> share = 1
     const r = makeReading({ hepVtKwh: 120, hepNtKwh: 40, upperVtKwh: 120, upperNtKwh: 40 });
-    const energy = 120 * 0.097189 + 40 * 0.047688;
-    const fixed = 0.982 * 1;
-    const grid = 160 * 0.044446;
-    const expected = Math.round((energy + fixed + grid) * 1.13 * 100) / 100;
-    expect(estimateReadingUpperCost(r, TARIFF)).toBeCloseTo(expected, 2);
+    // energy(13.57) + transmission(3.40) + distribution(6.15) + oie(2.12)
+    // + supply(0.98) + metering(1.98) = base 28.20; +13% VAT -> 31.87
+    expect(estimateReadingUpperCost(r, TARIFF)).toBe(31.87);
   });
 
   it("scales by the upper floor's share of total HEP usage", () => {

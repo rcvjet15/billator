@@ -94,10 +94,15 @@ export async function PUT(req: NextRequest) {
     const tariffKeys: (keyof AppSettings["tariffs"])[] = [
       "energyRateVt",
       "energyRateNt",
+      "energyRateJt",
       "overageMultiplier",
       "overageThresholdKwh",
       "fixedFee",
-      "gridFeeRate",
+      "meteringFee",
+      "transmissionRate",
+      "distributionRateVt",
+      "distributionRateNt",
+      "oieRate",
       "vatRate",
     ];
     for (const k of tariffKeys) {

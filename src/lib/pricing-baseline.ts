@@ -30,10 +30,16 @@ export function baselineForModel(model?: string | null): TariffConfig {
   return {
     energyRateVt: row.vt,
     energyRateNt: row.nt,
+    // Single-tariff (JT) rate — used by meters without separate VT/NT.
+    energyRateJt: 0.091324,
     overageMultiplier: 1.35, // +35% above the semester threshold (× base)
     overageThresholdKwh: 3000, // rolling 6-month semi-annual threshold
     fixedFee: row.opskrba, // monthly supply fixed fee (€/month)
-    gridFeeRate: 0.044446, // €/kWh, distribution (network) usage
+    meteringFee: 1.983, // monthly metering-point fee (€/month)
+    transmissionRate: 0.021256, // €/kWh, transmission (HOPS), total kWh
+    distributionRateVt: 0.044446, // €/kWh, distribution (HEP ODS) VT
+    distributionRateNt: 0.020514, // €/kWh, distribution NT
+    oieRate: 0.013239, // €/kWh, renewable fee (OIE), total kWh
     vatRate: 0.13, // PDV
   };
 }

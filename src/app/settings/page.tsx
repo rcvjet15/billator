@@ -382,8 +382,13 @@ function TariffTab({
       <div className="grid grid-cols-2 gap-4">
         {field("energyRateVt", "Energy rate VT (€/kWh)", "0.0001")}
         {field("energyRateNt", "Energy rate NT (€/kWh)", "0.0001")}
-        {field("fixedFee", "Monthly fixed fee (€)", "0.0001")}
-        {field("gridFeeRate", "Grid fee rate (€/kWh)", "0.0001")}
+        {field("energyRateJt", "Energy rate JT (€/kWh)", "0.0001")}
+        {field("transmissionRate", "Transmission (€/kWh)", "0.0001")}
+        {field("distributionRateVt", "Distribution VT (€/kWh)", "0.0001")}
+        {field("distributionRateNt", "Distribution NT (€/kWh)", "0.0001")}
+        {field("oieRate", "OIE / renewable (€/kWh)", "0.0001")}
+        {field("fixedFee", "Supply fee (€/month)", "0.0001")}
+        {field("meteringFee", "Metering / OMM (€/month)", "0.0001")}
         {field("vatRate", "VAT rate (0.13 = 13%)", "0.0001")}
         {field("overageThresholdKwh", "Overage threshold (kWh)", "1")}
         {field("overageMultiplier", "Overage multiplier", "0.0001")}

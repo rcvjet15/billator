@@ -286,22 +286,47 @@ export class SqliteAdapter extends StorageAdapter {
     return Promise.all([
       get("tariff.energyRateVt"),
       get("tariff.energyRateNt"),
+      get("tariff.energyRateJt"),
       get("tariff.overageMultiplier"),
       get("tariff.overageThresholdKwh"),
       get("tariff.fixedFee"),
-      get("tariff.gridFeeRate"),
+      get("tariff.meteringFee"),
+      get("tariff.transmissionRate"),
+      get("tariff.distributionRateVt"),
+      get("tariff.distributionRateNt"),
+      get("tariff.oieRate"),
       get("tariff.vatRate"),
-    ]).then(([energyRateVt, energyRateNt, overageMultiplier, overageThresholdKwh, fixedFee, gridFeeRate, vatRate]) => {
-      const cfg: Partial<TariffConfig> = {};
-      if (energyRateVt !== undefined) cfg.energyRateVt = energyRateVt;
-      if (energyRateNt !== undefined) cfg.energyRateNt = energyRateNt;
-      if (overageMultiplier !== undefined) cfg.overageMultiplier = overageMultiplier;
-      if (overageThresholdKwh !== undefined) cfg.overageThresholdKwh = overageThresholdKwh;
-      if (fixedFee !== undefined) cfg.fixedFee = fixedFee;
-      if (gridFeeRate !== undefined) cfg.gridFeeRate = gridFeeRate;
-      if (vatRate !== undefined) cfg.vatRate = vatRate;
-      return Promise.resolve(Object.keys(cfg).length ? cfg : null);
-    });
+    ]).then(
+      ([
+        energyRateVt,
+        energyRateNt,
+        energyRateJt,
+        overageMultiplier,
+        overageThresholdKwh,
+        fixedFee,
+        meteringFee,
+        transmissionRate,
+        distributionRateVt,
+        distributionRateNt,
+        oieRate,
+        vatRate,
+      ]) => {
+        const cfg: Partial<TariffConfig> = {};
+        if (energyRateVt !== undefined) cfg.energyRateVt = energyRateVt;
+        if (energyRateNt !== undefined) cfg.energyRateNt = energyRateNt;
+        if (energyRateJt !== undefined) cfg.energyRateJt = energyRateJt;
+        if (overageMultiplier !== undefined) cfg.overageMultiplier = overageMultiplier;
+        if (overageThresholdKwh !== undefined) cfg.overageThresholdKwh = overageThresholdKwh;
+        if (fixedFee !== undefined) cfg.fixedFee = fixedFee;
+        if (meteringFee !== undefined) cfg.meteringFee = meteringFee;
+        if (transmissionRate !== undefined) cfg.transmissionRate = transmissionRate;
+        if (distributionRateVt !== undefined) cfg.distributionRateVt = distributionRateVt;
+        if (distributionRateNt !== undefined) cfg.distributionRateNt = distributionRateNt;
+        if (oieRate !== undefined) cfg.oieRate = oieRate;
+        if (vatRate !== undefined) cfg.vatRate = vatRate;
+        return Promise.resolve(Object.keys(cfg).length ? cfg : null);
+      },
+    );
   }
 
   setTariffConfig(config: Partial<TariffConfig>): Promise<Partial<TariffConfig>> {
@@ -309,10 +334,15 @@ export class SqliteAdapter extends StorageAdapter {
     const defs: [string, number | undefined][] = [
       ["tariff.energyRateVt", config.energyRateVt],
       ["tariff.energyRateNt", config.energyRateNt],
+      ["tariff.energyRateJt", config.energyRateJt],
       ["tariff.overageMultiplier", config.overageMultiplier],
       ["tariff.overageThresholdKwh", config.overageThresholdKwh],
       ["tariff.fixedFee", config.fixedFee],
-      ["tariff.gridFeeRate", config.gridFeeRate],
+      ["tariff.meteringFee", config.meteringFee],
+      ["tariff.transmissionRate", config.transmissionRate],
+      ["tariff.distributionRateVt", config.distributionRateVt],
+      ["tariff.distributionRateNt", config.distributionRateNt],
+      ["tariff.oieRate", config.oieRate],
       ["tariff.vatRate", config.vatRate],
     ];
     defs.forEach(([k, v]) => {

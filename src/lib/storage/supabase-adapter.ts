@@ -31,10 +31,15 @@ type TariffRow = {
   id: number;
   energy_rate_vt?: number;
   energy_rate_nt?: number;
+  energy_rate_jt?: number;
   overage_multiplier?: number;
   overage_threshold_kwh?: number;
   fixed_fee?: number;
-  grid_fee_rate?: number;
+  metering_fee?: number;
+  transmission_rate?: number;
+  distribution_rate_vt?: number;
+  distribution_rate_nt?: number;
+  oie_rate?: number;
   vat_rate?: number;
 };
 
@@ -64,6 +69,7 @@ function toTariff(row: TariffRow): Partial<TariffConfig> {
   return {
     ...(row.energy_rate_vt !== undefined && { energyRateVt: row.energy_rate_vt }),
     ...(row.energy_rate_nt !== undefined && { energyRateNt: row.energy_rate_nt }),
+    ...(row.energy_rate_jt !== undefined && { energyRateJt: row.energy_rate_jt }),
     ...(row.overage_multiplier !== undefined && {
       overageMultiplier: row.overage_multiplier,
     }),
@@ -71,7 +77,17 @@ function toTariff(row: TariffRow): Partial<TariffConfig> {
       overageThresholdKwh: row.overage_threshold_kwh,
     }),
     ...(row.fixed_fee !== undefined && { fixedFee: row.fixed_fee }),
-    ...(row.grid_fee_rate !== undefined && { gridFeeRate: row.grid_fee_rate }),
+    ...(row.metering_fee !== undefined && { meteringFee: row.metering_fee }),
+    ...(row.transmission_rate !== undefined && {
+      transmissionRate: row.transmission_rate,
+    }),
+    ...(row.distribution_rate_vt !== undefined && {
+      distributionRateVt: row.distribution_rate_vt,
+    }),
+    ...(row.distribution_rate_nt !== undefined && {
+      distributionRateNt: row.distribution_rate_nt,
+    }),
+    ...(row.oie_rate !== undefined && { oieRate: row.oie_rate }),
     ...(row.vat_rate !== undefined && { vatRate: row.vat_rate }),
   };
 }
@@ -213,10 +229,15 @@ export class SupabaseAdapter extends StorageAdapter {
       id: 1,
       energy_rate_vt: config.energyRateVt,
       energy_rate_nt: config.energyRateNt,
+      energy_rate_jt: config.energyRateJt,
       overage_multiplier: config.overageMultiplier,
       overage_threshold_kwh: config.overageThresholdKwh,
       fixed_fee: config.fixedFee,
-      grid_fee_rate: config.gridFeeRate,
+      metering_fee: config.meteringFee,
+      transmission_rate: config.transmissionRate,
+      distribution_rate_vt: config.distributionRateVt,
+      distribution_rate_nt: config.distributionRateNt,
+      oie_rate: config.oieRate,
       vat_rate: config.vatRate,
     };
     const { data, error } = await this.client

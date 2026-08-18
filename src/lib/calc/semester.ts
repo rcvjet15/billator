@@ -128,11 +128,17 @@ export function calculateSplit(
     baseCostOfOverage * tariff.overageMultiplier;
   const penaltyCost = penalizedCostOfOverage - baseCostOfOverage;
 
-  // Fixed costs: monthly fixed fee(s) + grid fee on total kWh.
+  // Network & fixed components (excluding energy): transmission, distribution,
+  // OIE (renewable), supply fee and metering fee — across the block's months.
   const months = Math.max(1, readings.length);
-  const fixedFeeTotal = tariff.fixedFee * months;
-  const gridFeeTotal = hepTotalKwh * tariff.gridFeeRate;
-  const fixedCostTotal = fixedFeeTotal + gridFeeTotal;
+  const transmissionTotal = hepTotalKwh * tariff.transmissionRate;
+  const distributionTotal =
+    agg.hepVt * tariff.distributionRateVt + agg.hepNt * tariff.distributionRateNt;
+  const oieTotal = hepTotalKwh * tariff.oieRate;
+  const supplyTotal = tariff.fixedFee * months;
+  const meteringTotal = tariff.meteringFee * months;
+  const fixedCostTotal =
+    transmissionTotal + distributionTotal + oieTotal + supplyTotal + meteringTotal;
 
   // Proportional consumption shares for cost splitting.
   const makeConsumption = (

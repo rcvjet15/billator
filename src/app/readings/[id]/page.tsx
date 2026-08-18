@@ -135,8 +135,13 @@ export default function ReadingDetailPage({
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
             <DetailRow label="VT rate" value={formatEur(tariff.energyRateVt)} />
             <DetailRow label="NT rate" value={formatEur(tariff.energyRateNt)} />
-            <DetailRow label="Fixed fee" value={formatEur(tariff.fixedFee)} />
-            <DetailRow label="Grid fee" value={formatEur(tariff.gridFeeRate)} />
+            <DetailRow label="JT rate" value={formatEur(tariff.energyRateJt)} />
+            <DetailRow label="Transmission" value={formatEur(tariff.transmissionRate)} />
+            <DetailRow label="Distribution VT" value={formatEur(tariff.distributionRateVt)} />
+            <DetailRow label="Distribution NT" value={formatEur(tariff.distributionRateNt)} />
+            <DetailRow label="OIE" value={formatEur(tariff.oieRate)} />
+            <DetailRow label="Supply fee" value={formatEur(tariff.fixedFee)} />
+            <DetailRow label="Metering (OMM)" value={formatEur(tariff.meteringFee)} />
             <DetailRow label="VAT" value={`${(tariff.vatRate * 100).toFixed(0)}%`} />
           </div>
         </Card>
@@ -150,9 +155,10 @@ export default function ReadingDetailPage({
             Upper energy = upper VT × VT rate + upper NT × NT rate
           </li>
           <li>
-            Fixed + grid fee = share of upper floor (upper kWh ÷ HEP kWh) × (fixed fee + grid fee)
+            Network+fees = transmission + distribution (VT/NT) + OIE on the
+            floor&apos;s kWh, plus a share of the supply + metering fees.
           </li>
-          <li>VAT × (rates + fees) is applied at {tariff ? (tariff.vatRate * 100).toFixed(0) : "—"}%.</li>
+          <li>VAT (13%) is applied to the rounded base subtotal.</li>
           <li>
             This row is an <strong>estimate</strong>; the semester-level 3,000 kWh +35% overage penalty is computed
             per semester block on the <Link href="/split" className="text-primary underline">Split</Link> page.

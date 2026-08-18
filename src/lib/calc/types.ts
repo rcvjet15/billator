@@ -56,10 +56,21 @@ export interface ReadingInput {
 export interface TariffConfig {
   energyRateVt: number;
   energyRateNt: number;
+  /** Single-tariff (JT) energy rate, available for meters without separate tariffing. */
+  energyRateJt: number;
   overageMultiplier: number;
   overageThresholdKwh: number;
+  /** Monthly fixed supply fee (Opskrbna naknada). */
   fixedFee: number;
-  gridFeeRate: number;
+  /** Monthly metering-point fee (Naknada za OMM). */
+  meteringFee: number;
+  /** Transmission fee (Prijenos - HOPS), applied to total kWh. */
+  transmissionRate: number;
+  /** Distribution fee (Distribucija - HEP ODS) for VT and NT. */
+  distributionRateVt: number;
+  distributionRateNt: number;
+  /** Renewable energy fee (OIE), applied to total kWh. */
+  oieRate: number;
   vatRate: number;
 }
 
