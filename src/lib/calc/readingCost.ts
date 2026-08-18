@@ -24,9 +24,10 @@ export function estimateReadingUpperCost(
 
   const energy = cents(vt * tariff.energyRateVt + nt * tariff.energyRateNt);
   const transmission = cents(upperKwh * tariff.transmissionRate);
-  const distribution = cents(
-    vt * tariff.distributionRateVt + nt * tariff.distributionRateNt,
-  );
+  // Distribution is rounded per tariff line (VT, NT separately) to match the
+  // per-line cent-rounding rule used by calculateBill.
+  const distribution =
+    cents(vt * tariff.distributionRateVt) + cents(nt * tariff.distributionRateNt);
   const oie = cents(upperKwh * tariff.oieRate);
   const supply = cents(tariff.fixedFee * share);
   const metering = cents(tariff.meteringFee * share);
