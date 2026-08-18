@@ -64,6 +64,26 @@ ssh pi@pi5.local 'cd ~/billator && docker compose logs -f'
    them to the inbox (`/sync`), marks them read, and logs each run.
    Default query: `from:hep.hr has:attachment is:unread` (configurable).
 
+### Host-specific redirect URI (local vs Raspberry Pi)
+
+The OAuth client's **Authorized redirect URIs in Google Cloud** must exactly
+match the app's `redirectUri` setting, and that setting must match the host
+the app runs on:
+
+- **Localhost**: `http://localhost:3000/api/gmail/auth/callback`
+- **Raspberry Pi**: `http://<pi-host>:3000/api/gmail/auth/callback`
+  (e.g. `http://pi5.local:3000/api/gmail/auth/callback`)
+
+Before authorizing on the Pi:
+1. Add the Pi's URL to the OAuth client's **Authorized redirect URIs** in
+   Google Cloud Console (in addition to the localhost one).
+2. Set the app's **Settings → Gmail → Redirect URI** to that same Pi URL.
+
+The refresh token is tied to the **OAuth client** (Client ID/Secret), not the
+redirect URI — so a token obtained on localhost keeps working on the Pi as
+long as you use the same OAuth client. Re-authorization is only needed if you
+switch clients or clear the stored token.
+
 ## Tariff prices
 
 `Settings → HEP sync → Sync official prices` loads a hand-curated baseline
