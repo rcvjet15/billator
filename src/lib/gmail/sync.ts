@@ -14,6 +14,14 @@ export interface SyncOutcome {
   messageId?: string;
   error?: string;
   status: string;
+  /** Metadata about the newest message that was (or would be) matched. */
+  lastEmail?: {
+    messageId: string;
+    subject?: string;
+    from?: string;
+    date?: string;
+    wasParsed: boolean;
+  };
 }
 
 /** Resolve an absolute directory for storing invoice PDFs (settings-provided). */
@@ -122,6 +130,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
     const files: string[] = [];
     let downloadedCount = 0;
     let skippedCount = 0;
+    let lastEmail: SyncOutcome["lastEmail"] = undefined;
 
     for (const msg of messages) {
       const messageId = msg.id!;
@@ -140,11 +149,20 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         format: "full",
       });
 
+      const headers = detail.data.payload?.headers ?? [];
+      const subject = headers.find((h) => h.name === "Subject")?.value ?? undefined;
+      const from = headers.find((h) => h.name === "From")?.value ?? undefined;
+      const date = detail.data.internalDate
+        ? new Date(Number(detail.data.internalDate)).toISOString()
+        : undefined;
+
       const parts = detail.data.payload?.parts ?? [];
       const attachments = collectAttachments(parts as AttachPart[]);
 
       if (attachments.length === 0) continue;
 
+      // Track the newest matched email (messages are newest-first).
+      let anyParsed = false;
       for (const part of attachments) {
         const ext = path.extname(part.filename || "pdf").toLowerCase();
         const filename = sanitizeFilename(
@@ -167,6 +185,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         if (settings.gmail.autoParse && ext === ".pdf") {
           const r = await parseHepPdfBuffer(bytes);
           if (r && r.confidence > 0) {
+            anyParsed = true;
             parsePreview = {
               periodStart: r.periodStart,
               periodEnd: r.periodEnd,
@@ -192,6 +211,17 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         };
         await storage.addInboxPdf(pdf);
         downloadedCount += 1;
+      }
+
+      // Remember the newest matched email for the result popup.
+      if (!lastEmail) {
+        lastEmail = {
+          messageId,
+          subject,
+          from,
+          date,
+          wasParsed: anyParsed,
+        };
       }
 
       // Mark the message read (convenience; dedup is by message id, not unread).
@@ -223,6 +253,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
       files,
       messageId: log.messageId,
       status: log.status,
+      lastEmail,
     };
   } catch (err) {
     const e = (err as Error).message;

@@ -10,14 +10,66 @@ import { Card } from "@/components/ui/Card";
 import { DataTable, type DataTableColumn, type DataTableFilter } from "@/components/ui/DataTable";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { api } from "@/lib/api";
 import { useReadings } from "@/hooks/useReadings";
+import { useSettings } from "@/hooks/useSettings";
 import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
 import type { Reading } from "@/lib/calc/types";
 
+interface SyncResultPopup {
+  ok: boolean;
+  found: boolean;
+  status: string;
+  files: string[];
+  lastEmail?: {
+    messageId: string;
+    subject?: string;
+    from?: string;
+    date?: string;
+    wasParsed: boolean;
+  };
+  error?: string;
+}
+
 export default function ReadingsPage() {
   const { readings, loading, error, remove } = useReadings();
+  const { settings } = useSettings();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResultPopup | null>(null);
+
+  // Whether we can run the auto-parse sync: Gmail configured+enabled and
+  // automatic parsing enabled.
+  const canAutoParse = !!(
+    settings?.gmail.enabled &&
+    settings?.gmail.clientId &&
+    settings?.gmail.hasClientSecret &&
+    settings?.gmail.autoParse
+  );
+
+  const runSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const { outcome } = await api.runGmailSync();
+      setSyncResult({
+        ok: outcome.ok,
+        found: outcome.found,
+        status: outcome.status,
+        files: outcome.files,
+        lastEmail: outcome.lastEmail,
+      });
+    } catch (err) {
+      const e = err as Error;
+      console.error(`[readings] sync failed: ${e.message}`, e);
+      console.error(e.stack);
+      setSyncResult({ ok: false, found: false, status: "Sync failed", files: [], error: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const columns: DataTableColumn<Reading>[] = useMemo(
     () => [
@@ -139,9 +191,14 @@ export default function ReadingsPage() {
             entered on different days.
           </p>
         </div>
-        <Link href="/readings/new">
-          <Button>Create new</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button onClick={() => void runSync()} loading={syncing} disabled={!canAutoParse} title={canAutoParse ? "Run Gmail sync & auto-parse" : "Enable Gmail sync + auto-parse in Settings"}>
+            Run sync & auto-parse
+          </Button>
+          <Link href="/readings/new">
+            <Button>Create new</Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -175,6 +232,76 @@ export default function ReadingsPage() {
           </p>
         </Card>
       )}
+
+      {/* Sync & auto-parse result popup */}
+      <Modal
+        open={!!syncResult && !syncing}
+        onClose={() => setSyncResult(null)}
+        title="Gmail sync & auto-parse"
+        footer={
+          <Button variant="outline" onClick={() => setSyncResult(null)}>
+            Close
+          </Button>
+        }
+      >
+        {syncResult && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Badge tone={syncResult.found ? "success" : syncResult.ok ? "warning" : "danger"}>
+                {syncResult.found ? "Found & downloaded" : syncResult.ok ? "Nothing new" : "Error"}
+              </Badge>
+              <span className="text-sm text-muted-foreground">{syncResult.status}</span>
+            </div>
+
+            {syncResult.error && (
+              <p className="text-sm text-red-700">{syncResult.error}</p>
+            )}
+
+            {syncResult.files.length > 0 && (
+              <div>
+                <p className="mb-1 text-sm font-medium">Downloaded:</p>
+                <ul className="list-disc pl-5 text-sm text-muted-foreground">
+                  {syncResult.files.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {syncResult.lastEmail && (
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Last matched email
+                </p>
+                <p className="mt-1 text-sm font-medium">
+                  {syncResult.lastEmail.subject || "(no subject)"}
+                </p>
+                {syncResult.lastEmail.from && (
+                  <p className="text-sm text-muted-foreground">{syncResult.lastEmail.from}</p>
+                )}
+                {syncResult.lastEmail.date && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateWithTime(syncResult.lastEmail.date)}
+                  </p>
+                )}
+                <p className="mt-1 text-xs">
+                  {syncResult.lastEmail.wasParsed ? (
+                    <span className="text-green-700">Parsed automatically</span>
+                  ) : (
+                    <span className="text-amber-700">Not parsed (image or parse skipped)</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {!syncResult.lastEmail && (
+              <p className="text-sm text-muted-foreground">
+                No new invoice email was pulled this run.
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -78,8 +78,21 @@ export const api = {
   deleteInboxItem: (id: string): Promise<{ ok: boolean }> =>
     request(`/api/inbox/${id}`, { method: "DELETE" }),
 
-  runGmailSync: (): Promise<{ outcome: { ok: boolean; found: boolean; files: string[]; status: string } }> =>
-    request("/api/gmail/sync", { method: "POST" }),
+  runGmailSync: (): Promise<{
+    outcome: {
+      ok: boolean;
+      found: boolean;
+      files: string[];
+      status: string;
+      lastEmail?: {
+        messageId: string;
+        subject?: string;
+        from?: string;
+        date?: string;
+        wasParsed: boolean;
+      };
+    };
+  }> => request("/api/gmail/sync", { method: "POST" }),
 
   gmailStatus: (): Promise<{
     enabled: boolean;
