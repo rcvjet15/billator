@@ -4,6 +4,7 @@ import path from "node:path";
 import type { InboxPdf, SyncLog, SyncTrigger } from "@/lib/calc/types";
 import { getGmailClient, type GmailClient } from "@/lib/gmail/client";
 import { parseHepPdfBuffer } from "@/lib/parse/hep";
+import { sendPush } from "@/lib/push/send";
 import { loadSettings } from "@/lib/settings";
 import { StorageService } from "@/lib/storage-service";
 
@@ -246,6 +247,15 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
       status,
       trigger,
     });
+
+    // Push a notification when a genuinely new invoice was downloaded.
+    if (downloadedCount > 0) {
+      void sendPush({
+        title: "New HEP bill synced",
+        body: lastEmail?.subject || `Downloaded ${downloadedCount} attachment(s)`,
+        url: "/readings",
+      }).catch(() => undefined);
+    }
 
     return {
       ok: true,

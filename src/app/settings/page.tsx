@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { useSettings } from "@/hooks/useSettings";
+import { usePush } from "@/hooks/usePush";
 import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
 
@@ -168,6 +169,32 @@ export default function SettingsPage() {
                 patchDraft((d) => ({ ...d, gmail: { ...d.gmail, redirectUri: v } }))
               }
             />
+
+            {/* Push notifications */}
+            <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Push notifications</p>
+                  <p className="text-xs text-muted-foreground">
+                    Get an alert when a new HEP bill is synced &amp; parsed.
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={current.notifications?.enabled ?? false}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      patchDraft((d) => ({ ...d, notifications: { ...d.notifications, enabled: v } }));
+                      void persist({ notifications: { ...current.notifications, enabled: v } } as Partial<AppSettings>, "Notifications");
+                    }}
+                  />
+                  On
+                </label>
+              </div>
+              <PushSection active={current.notifications?.enabled ?? false} subscribed={current.notifications?.subscribed ?? false} />
+            </div>
+
             <div>
               <Button
                 onClick={() =>
@@ -496,5 +523,50 @@ function SemesterTab({
         </Button>
       </div>
     </Card>
+  );
+}
+
+/** Web Push subscribe/unsubscribe/test controls used in the Gmail settings tab. */
+function PushSection({ active, subscribed }: { active: boolean; subscribed: boolean }) {
+  const { busy, supported, isSecure, permission, subscribe, unsubscribe, sendTest } = usePush();
+
+  if (!active) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Enable notifications to subscribe for new-bill alerts.
+      </p>
+    );
+  }
+
+  if (!supported || !isSecure) {
+    return (
+      <p className="text-xs text-amber-700">
+        Push requires HTTPS (or localhost). This connection is not a secure context, so
+        notifications are unavailable here.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void (subscribed ? unsubscribe() : subscribe())}
+          loading={busy}
+        >
+          {subscribed ? "Disable notifications" : "Enable notifications"}
+        </Button>
+        {subscribed && (
+          <Button variant="ghost" size="sm" onClick={() => void sendTest()} disabled={busy}>
+            Send test
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Permission: {permission} · {subscribed ? "Subscribed" : "Not subscribed"}
+      </p>
+    </div>
   );
 }

@@ -62,7 +62,27 @@ ssh pi@pi5.local 'cd ~/billator && docker compose logs -f'
    `GMAIL_ENCRYPTION_KEY`).
 4. The background worker polls unread HEP emails with PDF attachments, saves
    them to the inbox (`/sync`), marks them read, and logs each run.
-   Default query: `from:hep.hr has:attachment is:unread` (configurable).
+   Default query: `from:elektra.racuni-RI@hep.hr has:attachment` (no unread
+   dependency; dedup is by message id).
+
+### PWA / Web Push notifications
+
+The app is a PWA (installable) and can send native push alerts when a new HEP
+bill is synced/parsed.
+
+- **Requires HTTPS (or localhost).** Service workers and the Web Push API are
+  only available in a secure context. On `localhost` (dev) push works out of
+  the box. On the Raspberry Pi served over plain `http://<pi-ip>:3000` it is
+  blocked until you add TLS (e.g. reverse-proxy with Caddy/nginx, or a domain).
+- **VAPID keys** in the Pi's `.env` (generate with
+  `npx web-push generate-vapid-keys`):
+  - `NEXT_PUBLIC_VAPID_PUBLIC_KEY=`
+  - `VAPID_PRIVATE_KEY=`
+  - `VAPID_SUBJECT=mailto:you@example.com`
+- Enable in **Settings → Gmail → Push notifications** (permission + subscribe),
+  then use **Send test** to verify.
+- Push is sent when a **new invoice is downloaded** and when a **parsed PDF is
+  turned into a reading**.
 
 ### Host-specific redirect URI (local vs Raspberry Pi)
 

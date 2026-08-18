@@ -33,6 +33,10 @@ const DEFAULTS: AppSettings = {
     summerEndDay: 30,
     summerEndMonth: 9,
   },
+  notifications: {
+    enabled: false,
+    subscribed: false,
+  },
   advanced: {
     syncLogRetention: 100,
   },
@@ -116,6 +120,15 @@ export async function loadSettings(): Promise<AppSettings> {
   });
   s.semesters = await loadSem("semesters", s.semesters);
 
+  s.notifications = {
+    enabled:
+      bool(await storage.getSetting(`${KEY_PREFIX}notifications.enabled`)) ??
+      s.notifications.enabled,
+    subscribed:
+      bool(await storage.getSetting(`${KEY_PREFIX}notifications.subscribed`)) ??
+      s.notifications.subscribed,
+  };
+
   s.advanced = {
     ...s.advanced,
     syncLogRetention:
@@ -178,6 +191,13 @@ export async function saveSettings(
     setSem("summerStartMonth", sm.summerStartMonth);
     setSem("summerEndDay", sm.summerEndDay);
     setSem("summerEndMonth", sm.summerEndMonth);
+  }
+
+  if (patch.notifications) {
+    const n = patch.notifications;
+    if (n.enabled !== undefined) set(`${KEY_PREFIX}notifications.enabled`, n.enabled);
+    if (n.subscribed !== undefined)
+      set(`${KEY_PREFIX}notifications.subscribed`, n.subscribed);
   }
 
   if (patch.advanced) {

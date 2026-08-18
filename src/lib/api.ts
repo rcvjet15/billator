@@ -102,4 +102,20 @@ export const api = {
     pollIntervalMs: number;
     query: string;
   }> => request("/api/gmail/status"),
+
+  pushPublicKey: (): Promise<{ publicKey: string | null }> =>
+    request("/api/push/public-key"),
+
+  pushSubscribe: (subscription: unknown): Promise<{ ok: boolean; settings: AppSettings }> =>
+    request("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription }),
+    }),
+
+  pushUnsubscribe: (): Promise<{ ok: boolean; settings: AppSettings }> =>
+    request("/api/push/unsubscribe", { method: "POST" }),
+
+  pushTest: (): Promise<{ ok: boolean }> => request("/api/push/test", { method: "POST" }),
 };
+
+export type PushSubscriptionLike = { endpoint: string; keys?: { p256dh?: string; auth?: string }; expirationTime?: number | null };

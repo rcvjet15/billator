@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
 import { getTariffConfig } from "@/lib/config-service";
 import type { ReadingInput } from "@/lib/calc/types";
+import { sendPush } from "@/lib/push/send";
 import { StorageService } from "@/lib/storage-service";
 
 function validateInput(body: unknown): { input: ReadingInput } | { error: string } {
@@ -81,6 +82,14 @@ export async function POST(req: NextRequest) {
   try {
     const storage = StorageService.getInstance();
     const reading = await storage.createReading(result.input);
+    // Notify when a new reading is created from a parsed invoice PDF.
+    if (reading.origin === "parsed" || result.input.sourcePdfId) {
+      void sendPush({
+        title: "Bill parsed into a reading",
+        body: `${reading.periodStart} → ${reading.periodEnd} · total ${reading.hepGrandTotal}`,
+        url: `/readings/${reading.id}`,
+      }).catch(() => undefined);
+    }
     return NextResponse.json({ reading }, { status: 201 });
   } catch (err) {
     return NextResponse.json(

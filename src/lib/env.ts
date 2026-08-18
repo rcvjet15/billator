@@ -29,6 +29,13 @@ export const env = {
   // App-secret encryption (holds Gmail secrets in the DB at rest)
   gmailEncryptionKey: process.env.GMAIL_ENCRYPTION_KEY || "",
 
+  // Web Push (VAPID)
+  vapid: {
+    publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+    privateKey: process.env.VAPID_PRIVATE_KEY || "",
+    subject: process.env.VAPID_SUBJECT || "mailto:robertcvjetkovic15@gmail.com",
+  },
+
   isSupabaseEnabled: () =>
     env.storageMode === "supabase" && env.supabase.isConfigured(),
 

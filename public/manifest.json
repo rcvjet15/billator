@@ -1,0 +1,23 @@
+{
+  "name": "Billator",
+  "short_name": "Billator",
+  "description": "Split the Croatian HEP electricity bill between two floors, tracking the rolling 6-month, 3,000 kWh semi-annual tariff.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f7",
+  "theme_color": "#166534",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

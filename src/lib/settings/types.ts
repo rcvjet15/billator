@@ -7,7 +7,16 @@ export interface AppSettings {
   storage: StorageSettings;
   tariffs: TariffConfig;
   semesters: SemesterCycleSettings;
+  notifications: NotificationsSettings;
   advanced: AdvancedSettings;
+}
+
+/** Web Push notification settings. */
+export interface NotificationsSettings {
+  /** Master toggle: whether push notifications are desired. */
+  enabled: boolean;
+  /** True when a push subscription for this origin is stored. */
+  subscribed: boolean;
 }
 
 /** When each 6-month tariff cycle starts/ends (month/day, 1-based). */

@@ -49,6 +49,7 @@ export async function PUT(req: NextRequest) {
   const storage = (b.storage || {}) as Record<string, unknown>;
   const tariffs = (b.tariffs || {}) as Record<string, unknown>;
   const semesters = (b.semesters || {}) as Record<string, unknown>;
+  const notifications = (b.notifications || {}) as Record<string, unknown>;
   const advanced = (b.advanced || {}) as Record<string, unknown>;
 
   try {
@@ -137,6 +138,16 @@ export async function PUT(req: NextRequest) {
     }
     if (Object.keys(semPatch).length > 0) {
       await saveSettings({ semesters: semPatch } as Partial<AppSettings>);
+    }
+
+    // Notifications
+    const notifPatch: Partial<AppSettings["notifications"]> = {};
+    if (typeof notifications.enabled === "boolean")
+      notifPatch.enabled = notifications.enabled;
+    if (typeof notifications.subscribed === "boolean")
+      notifPatch.subscribed = notifications.subscribed;
+    if (Object.keys(notifPatch).length > 0) {
+      await saveSettings({ notifications: notifPatch } as Partial<AppSettings>);
     }
 
     // Re-resolve and return with masked secrets.
