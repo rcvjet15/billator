@@ -82,6 +82,16 @@ export function useSync() {
     setInbox((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  /** Create a reading from a parsed inbox PDF. */
+  const createReading = useCallback(
+    async (id: string) => {
+      const { reading } = await api.createReadingFromInbox(id);
+      await refresh();
+      return reading;
+    },
+    [refresh],
+  );
+
   /** Delete a specific email's dedup records, then pull & parse it again. */
   const reSyncMessage = useCallback(
     async (msgId: string) => {
@@ -116,6 +126,7 @@ export function useSync() {
     syncNow,
     removeInboxItem,
     reSyncMessage,
+    createReading,
     clearLogs,
   };
 }

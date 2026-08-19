@@ -78,6 +78,9 @@ export const api = {
   deleteInboxItem: (id: string): Promise<{ ok: boolean }> =>
     request(`/api/inbox/${id}`, { method: "DELETE" }),
 
+  createReadingFromInbox: (id: string): Promise<{ reading: Reading }> =>
+    request(`/api/inbox/${id}/create-reading`, { method: "POST" }),
+
   clearMsgDedup: (msgId: string): Promise<{ ok: boolean; removed: number }> =>
     request("/api/inbox/clear-msg", {
       method: "POST",

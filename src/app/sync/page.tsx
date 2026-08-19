@@ -19,6 +19,7 @@ export default function SyncPage() {
     syncNow,
     removeInboxItem,
     reSyncMessage,
+    createReading,
     clearLogs,
   } = useSync();
 
@@ -160,6 +161,16 @@ export default function SyncPage() {
                   >
                     View
                   </a>
+                  {p.parsePreview && !p.readingId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      title="Create a reading from the parsed invoice data"
+                      onClick={() => void createReading(p.id)}
+                    >
+                      Create reading
+                    </Button>
+                  )}
                   {p.msgId && (
                     <Button
                       variant="ghost"
