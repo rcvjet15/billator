@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Button, Spinner } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -27,9 +28,11 @@ export default function ReadingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [reading, setReading] = useState<Reading | null>(null);
   const [tariff, setTariff] = useState<TariffConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const { remove } = useReadings();
 
   useEffect(() => {
@@ -91,11 +94,21 @@ export default function ReadingDetailPage({
           </Link>
           <Button
             variant="destructive"
-            onClick={() => {
-              if (window.confirm("Delete this reading?")) void remove(reading.id);
+            disabled={deleting}
+            onClick={async () => {
+              if (!window.confirm("Delete this reading?")) return;
+              setDeleting(true);
+              try {
+                await remove(reading.id);
+                router.push("/readings");
+                router.refresh();
+              } catch (err) {
+                console.error("[readings] delete failed", err);
+                setDeleting(false);
+              }
             }}
           >
-            Delete
+            {deleting ? "Deleting…" : "Delete"}
           </Button>
         </div>
       </div>

@@ -18,6 +18,7 @@ export default function SyncPage() {
     refresh,
     syncNow,
     removeInboxItem,
+    reSyncMessage,
     clearLogs,
   } = useSync();
 
@@ -159,6 +160,17 @@ export default function SyncPage() {
                   >
                     View
                   </a>
+                  {p.msgId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      loading={syncing}
+                      title="Delete this email's records and pull it again"
+                      onClick={() => void reSyncMessage(p.msgId!)}
+                    >
+                      Re-sync
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

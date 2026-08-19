@@ -527,6 +527,11 @@ export class SqliteAdapter extends StorageAdapter {
     const info = this.db.prepare("DELETE FROM inbox_pdfs WHERE id = ?").run(id);
     return Promise.resolve(info.changes > 0);
   }
+
+  deleteInboxByMsgId(msgId: string): Promise<number> {
+    const info = this.db.prepare("DELETE FROM inbox_pdfs WHERE msg_id = ?").run(msgId);
+    return Promise.resolve(info.changes);
+  }
 }
 
 function computeReadingStatus(r: {

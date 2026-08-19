@@ -408,6 +408,16 @@ export class SupabaseAdapter extends StorageAdapter {
     if (error) throw new Error(error.message);
     return (data?.length ?? 0) > 0;
   }
+
+  async deleteInboxByMsgId(msgId: string): Promise<number> {
+    const { data, error } = await this.client
+      .from("inbox_pdfs")
+      .delete()
+      .eq("msg_id", msgId)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return data?.length ?? 0;
+  }
 }
 
 function rowToSyncLog(r: Record<string, unknown>): SyncLog {

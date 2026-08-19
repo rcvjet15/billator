@@ -87,4 +87,7 @@ export abstract class StorageAdapter {
   ): Promise<InboxPdf | null>;
 
   abstract deleteInboxPdf(id: string): Promise<boolean>;
+
+  /** Delete every inbox record for a given Gmail message id (clears dedup). */
+  abstract deleteInboxByMsgId(msgId: string): Promise<number>;
 }

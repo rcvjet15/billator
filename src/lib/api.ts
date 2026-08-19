@@ -78,6 +78,12 @@ export const api = {
   deleteInboxItem: (id: string): Promise<{ ok: boolean }> =>
     request(`/api/inbox/${id}`, { method: "DELETE" }),
 
+  clearMsgDedup: (msgId: string): Promise<{ ok: boolean; removed: number }> =>
+    request("/api/inbox/clear-msg", {
+      method: "POST",
+      body: JSON.stringify({ msgId }),
+    }),
+
   runGmailSync: (): Promise<{
     outcome: {
       ok: boolean;

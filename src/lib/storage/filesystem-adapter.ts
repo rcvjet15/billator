@@ -253,6 +253,14 @@ export class FilesystemAdapter extends StorageAdapter {
     await this.write(state);
     return true;
   }
+
+  async deleteInboxByMsgId(msgId: string): Promise<number> {
+    const state = await this.read();
+    const before = state.inboxPdfs.length;
+    state.inboxPdfs = state.inboxPdfs.filter((p) => p.msgId !== msgId);
+    await this.write(state);
+    return before - state.inboxPdfs.length;
+  }
 }
 
 function computeFsStatus(r: {

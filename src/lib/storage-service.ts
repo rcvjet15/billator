@@ -161,6 +161,10 @@ class StorageService {
   deleteInboxPdf(id: string): Promise<boolean> {
     return this.adapter.deleteInboxPdf(id);
   }
+
+  deleteInboxByMsgId(msgId: string): Promise<number> {
+    return this.adapter.deleteInboxByMsgId(msgId);
+  }
 }
 
 export { StorageService };

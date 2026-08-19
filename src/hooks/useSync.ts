@@ -82,6 +82,24 @@ export function useSync() {
     setInbox((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  /** Delete a specific email's dedup records, then pull & parse it again. */
+  const reSyncMessage = useCallback(
+    async (msgId: string) => {
+      setSyncing(true);
+      setError(null);
+      try {
+        await api.clearMsgDedup(msgId);
+        await api.runGmailSync();
+        await refresh();
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [refresh],
+  );
+
   const clearLogs = useCallback(async () => {
     await api.clearSyncLogs();
     setLogs([]);
@@ -97,6 +115,7 @@ export function useSync() {
     refresh,
     syncNow,
     removeInboxItem,
+    reSyncMessage,
     clearLogs,
   };
 }
