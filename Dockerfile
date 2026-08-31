@@ -38,6 +38,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# pdf.worker.mjs is loaded at runtime by pdfjs-dist/pdf-parse via a dynamic
+# path that Next's standalone tracing doesn't include. Copy it in explicitly.
+RUN mkdir -p node_modules/pdfjs-dist/legacy/build
+COPY --from=builder --chown=nextjs:nodejs \
+  /app/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs \
+  ./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs
+
 USER nextjs
 EXPOSE 3000
 VOLUME ["/app/data"]
