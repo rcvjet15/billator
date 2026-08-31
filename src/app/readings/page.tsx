@@ -17,6 +17,21 @@ import { useSettings } from "@/hooks/useSettings";
 import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
 import type { Reading } from "@/lib/calc/types";
 
+/** Why a reading is incomplete (mirrors the status computation). */
+function incompleteReason(r: Reading): string {
+  const hasInvoice =
+    Number(r.hepVtKwh) > 0 ||
+    Number(r.hepNtKwh) > 0 ||
+    Number(r.hepGrandTotal) > 0 ||
+    Number(r.hepTotalSupply) > 0 ||
+    Number(r.hepFees) > 0;
+  const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
+  if (!hasInvoice && !hasUpper) return "no data yet";
+  if (!hasInvoice) return "missing invoice";
+  if (!hasUpper) return "missing upper-floor";
+  return "incomplete";
+}
+
 interface SyncResultPopup {
   ok: boolean;
   found: boolean;
@@ -134,12 +149,16 @@ export default function ReadingsPage() {
         key: "status",
         header: "Status",
         sortValue: (r) => r.status ?? "",
-        render: (r) =>
-          r.status === "complete" ? (
-            <Badge tone="success">complete</Badge>
-          ) : (
-            <Badge tone="warning">incomplete</Badge>
-          ),
+        render: (r) => {
+          if (r.status === "complete") {
+            return <Badge tone="success">complete</Badge>;
+          }
+          return (
+            <Badge tone="warning">
+              {incompleteReason(r)}
+            </Badge>
+          );
+        },
       },
       {
         key: "actions",
