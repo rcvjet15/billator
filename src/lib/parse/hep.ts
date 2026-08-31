@@ -33,8 +33,11 @@ export interface HepParseResult {
   confidence: number;
 }
 
+import { installDomPollyfills } from "@/lib/parse/polyfill";
+
 /** Parse a PDF buffer (bytes) into a HepParseResult, or null on failure. */
 export async function parseHepPdfBuffer(bytes: Uint8Array): Promise<HepParseResult | null> {
+  installDomPollyfills();
   try {
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: bytes as unknown as ArrayBuffer });
