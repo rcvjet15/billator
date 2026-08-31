@@ -11,7 +11,7 @@ ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN apk add --no-cache python3 make g++ \
     && npm config set registry "https://registry.npmjs.org/" \
     && npm config set replace-registry-host always \
-    && npm ci --no-audit --no-fund --omit=optional --maxsockets 2
+    && npm ci --no-audit --no-fund --maxsockets 2
 
 FROM node:22-alpine AS builder
 WORKDIR /app
