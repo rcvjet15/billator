@@ -50,6 +50,13 @@ export async function POST(
 
     // Resolve deltas against the chronological predecessor.
     const all = await storage.listReadings();
+    const dup = all.find((r) => r.periodStart === input.periodStart);
+    if (dup) {
+      return NextResponse.json(
+        { error: `A reading already exists for ${input.periodStart}. Edit it instead (${dup.id}).` },
+        { status: 409 },
+      );
+    }
     const prev = previousReading(all, input.periodStart);
     const { consumption, startEnd } = resolveReadingDeltas(input, prev);
 

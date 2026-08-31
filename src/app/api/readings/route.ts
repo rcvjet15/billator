@@ -111,6 +111,21 @@ export async function POST(req: NextRequest) {
   try {
     const storage = StorageService.getInstance();
     const allReadings = await storage.listReadings();
+
+    // Prevent two readings for the same period: a duplicate would double-count
+    // consumption and break the cumulative delta logic.
+    const dup = allReadings.find((r) => r.periodStart === result.input.periodStart);
+    if (dup) {
+      return NextResponse.json(
+        {
+          error:
+            `A reading already exists for period ${result.input.periodStart}. ` +
+            `Edit the existing reading instead (${dup.id}).`,
+        },
+        { status: 409 },
+      );
+    }
+
     const withDeltas = await applyDeltas(result.input, allReadings);
     const reading = await storage.createReading(withDeltas);
     // Notify when a new reading is created from a parsed invoice PDF.
