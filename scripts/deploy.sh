@@ -29,6 +29,9 @@ fi
 PI_HOST="${PI_HOST:-pi5.local}"
 PI_USER="${PI_USER:-pi}"
 PI_PATH="${PI_PATH:-~/billator}"
+# Host port for Billator. NOTE: on the Pi port 3000 is Grafana's, so set
+# BILLATOR_PORT=3100 (or another free port) in .env.deploy.
+BILLATOR_PORT="${BILLATOR_PORT:-3000}"
 
 # ---- pre-flight checks --------------------------------------------------
 for cmd in ssh rsync; do
@@ -67,8 +70,8 @@ rsync -az --delete \
 
 echo "→ Building & starting containers on the Pi (this may take a few minutes)..."
 ssh "${PI_USER}@${PI_HOST}" \
-  "cd ${REMOTE_PROJECT} && docker compose up --build -d"
+  "cd ${REMOTE_PROJECT} && BILLATOR_PORT=${BILLATOR_PORT} docker compose up --build -d"
 
 echo ""
-echo "✅ Deployed. App should be at http://${PI_HOST}:3000"
+echo "✅ Deployed. App should be at http://${PI_HOST}:${BILLATOR_PORT}"
 echo "   Logs:  ssh ${PI_USER}@${PI_HOST} 'cd ${REMOTE_PROJECT} && docker compose logs -f billator'"

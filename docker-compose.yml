@@ -6,10 +6,15 @@ services:
     image: billator:latest
     container_name: billator
     ports:
-      - "3000:3000"
+      # Host port configurable via PORT (default 3000). NOTE: on the Pi,
+      # port 3000 is used by Grafana, so set PORT=3100 (or another free port).
+      - "${BILLATOR_PORT:-3000}:3000"
     env_file:
       - .env
     environment:
+      # Use the container's own PORT for Next.js; default 3000.
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
       - STORAGE_MODE=sqlite
       - DB_PATH=/app/data/billator.db
     volumes:
@@ -21,3 +26,4 @@ services:
 
 volumes:
   billator_data:
+
