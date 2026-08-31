@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
+import {
+  previousReading,
+  resolveReadingDeltas,
+} from "@/lib/calc/delta";
 import { getTariffConfig } from "@/lib/config-service";
-import type { ReadingInput } from "@/lib/calc/types";
+import type { ReadingInput, Reading } from "@/lib/calc/types";
 import { sendPush } from "@/lib/push/send";
 import { StorageService } from "@/lib/storage-service";
 
@@ -24,6 +28,14 @@ function validateInput(body: unknown): { input: ReadingInput } | { error: string
     "hepGrandTotal",
     "upperVtKwh",
     "upperNtKwh",
+    "hepStartVt",
+    "hepEndVt",
+    "hepStartNt",
+    "hepEndNt",
+    "upperStartVt",
+    "upperEndVt",
+    "upperStartNt",
+    "upperEndNt",
   ] as const;
   const input: ReadingInput = {
     periodStart: b.periodStart as string,
@@ -43,6 +55,23 @@ function validateInput(body: unknown): { input: ReadingInput } | { error: string
   if (b.origin === "parsed" || b.origin === "manual") input.origin = b.origin;
 
   return { input };
+}
+
+/** Resolve cumulative Start/End into derived monthly consumption deltas. */
+async function applyDeltas(
+  input: ReadingInput,
+  allReadings: Reading[],
+): Promise<ReadingInput> {
+  const prev = previousReading(allReadings, input.periodStart);
+  const { consumption, startEnd } = resolveReadingDeltas(input, prev);
+  return {
+    ...input,
+    ...startEnd,
+    hepVtKwh: consumption.hepVtKwh,
+    hepNtKwh: consumption.hepNtKwh,
+    upperVtKwh: consumption.upperVtKwh,
+    upperNtKwh: consumption.upperNtKwh,
+  };
 }
 
 export async function GET() {
@@ -81,7 +110,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const storage = StorageService.getInstance();
-    const reading = await storage.createReading(result.input);
+    const allReadings = await storage.listReadings();
+    const withDeltas = await applyDeltas(result.input, allReadings);
+    const reading = await storage.createReading(withDeltas);
     // Notify when a new reading is created from a parsed invoice PDF.
     if (reading.origin === "parsed" || result.input.sourcePdfId) {
       void sendPush({

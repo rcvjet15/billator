@@ -18,6 +18,7 @@ export interface Reading {
   id: string;
   periodStart: string;
   periodEnd: string;
+  /** Derived monthly consumption (typically End - Start). */
   hepVtKwh: number;
   hepNtKwh: number;
   hepTotalSupply: number;
@@ -25,6 +26,15 @@ export interface Reading {
   hepGrandTotal: number;
   upperVtKwh: number;
   upperNtKwh: number;
+  /** Cumulative (odometer-style) meter values. Optional Start/End per channel. */
+  hepStartVt?: number;
+  hepEndVt?: number;
+  hepStartNt?: number;
+  hepEndNt?: number;
+  upperStartVt?: number;
+  upperEndVt?: number;
+  upperStartNt?: number;
+  upperEndNt?: number;
   createdAt: string;
   updatedAt: string;
   /** A reading is complete when it has invoice (HEP) data and upper-floor data. */
@@ -48,6 +58,14 @@ export interface ReadingInput {
   hepGrandTotal?: number;
   upperVtKwh?: number;
   upperNtKwh?: number;
+  hepStartVt?: number;
+  hepEndVt?: number;
+  hepStartNt?: number;
+  hepEndNt?: number;
+  upperStartVt?: number;
+  upperEndVt?: number;
+  upperStartNt?: number;
+  upperEndNt?: number;
   sourcePdfId?: string;
   sourcePdfName?: string;
   origin?: ReadingOrigin;
@@ -173,6 +191,11 @@ export interface HepParsePreview {
   hepFees?: number;
   hepGrandTotal?: number;
   hepOverageKwh?: number;
+  /** Cumulative meter readings (Stanje od/do) where present on the invoice. */
+  hepStartVt?: number;
+  hepEndVt?: number;
+  hepStartNt?: number;
+  hepEndNt?: number;
   confidence: number;
 }
 

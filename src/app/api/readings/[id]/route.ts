@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { previousReading, resolveReadingDeltas } from "@/lib/calc/delta";
 import type { Reading } from "@/lib/calc/types";
 import { StorageService } from "@/lib/storage-service";
 
@@ -27,26 +28,32 @@ export async function GET(
 
 function toPartial(body: Record<string, unknown>): Partial<Reading> {
   const input: Partial<Reading> = {};
-  const map = {
-    periodStart: "periodStart",
-    periodEnd: "periodEnd",
-    hepVtKwh: "hepVtKwh",
-    hepNtKwh: "hepNtKwh",
-    hepTotalSupply: "hepTotalSupply",
-    hepFees: "hepFees",
-    hepGrandTotal: "hepGrandTotal",
-    upperVtKwh: "upperVtKwh",
-    upperNtKwh: "upperNtKwh",
-  } as const;
-  for (const k of Object.keys(map)) {
-    const key = k as keyof typeof map;
-    if (body[key] !== undefined) {
-      const v = body[key];
-      if (typeof v === "number") (input as Record<string, unknown>)[map[key]] = v;
-      if (typeof v === "string") {
-        const n = Number(v);
-        (input as Record<string, unknown>)[map[key]] = Number.isFinite(n) ? n : v;
-      }
+  const numericKeys = [
+    "periodStart",
+    "periodEnd",
+    "hepVtKwh",
+    "hepNtKwh",
+    "hepTotalSupply",
+    "hepFees",
+    "hepGrandTotal",
+    "upperVtKwh",
+    "upperNtKwh",
+    "hepStartVt",
+    "hepEndVt",
+    "hepStartNt",
+    "hepEndNt",
+    "upperStartVt",
+    "upperEndVt",
+    "upperStartNt",
+    "upperEndNt",
+  ] as const;
+  for (const key of numericKeys) {
+    const v = body[key];
+    if (v === undefined) continue;
+    if (typeof v === "number") (input as Record<string, unknown>)[key] = v;
+    if (typeof v === "string") {
+      const n = Number(v);
+      (input as Record<string, unknown>)[key] = Number.isFinite(n) ? n : v;
     }
   }
   return input;
@@ -66,7 +73,29 @@ export async function PUT(
 
   try {
     const storage = StorageService.getInstance();
-    const reading = await storage.updateReading(id, toPartial(body));
+    const partial = toPartial(body);
+    const all = await storage.listReadings();
+    const current = all.find((r) => r.id === id);
+
+    // Determine the predecessor among the other readings (exclude this one).
+    const others = all.filter((r) => r.id !== id);
+    const prev = current ? previousReading(others, current.periodStart) : null;
+
+    // Merge the requested cumulative changes over current to recompute deltas.
+    const mergedCumulative: Partial<Reading> = {
+      ...current,
+      ...partial,
+    };
+    const { consumption, startEnd } = resolveReadingDeltas(mergedCumulative, prev);
+
+    const reading = await storage.updateReading(id, {
+      ...partial,
+      ...startEnd,
+      hepVtKwh: consumption.hepVtKwh,
+      hepNtKwh: consumption.hepNtKwh,
+      upperVtKwh: consumption.upperVtKwh,
+      upperNtKwh: consumption.upperNtKwh,
+    });
     if (!reading) {
       return NextResponse.json({ error: "Reading not found." }, { status: 404 });
     }

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { previousReading, resolveReadingDeltas } from "@/lib/calc/delta";
 import { StorageService } from "@/lib/storage-service";
 
 type Params = { id: string };
 
 /**
  * Create a reading from a parsed inbox PDF. Uses the stored parse preview to
- * prefill period + HEP fields, links the reading to the inbox item, and sets
- * origin to "parsed". The upper-floor monitor readings can be added later.
+ * prefill period + HEP fields (including cumulative Stanje od/do), links the
+ * reading to the inbox item, and sets origin to "parsed". The upper-floor
+ * monitor readings can be added later.
  */
 export async function POST(
   _req: NextRequest,
@@ -29,7 +31,7 @@ export async function POST(
       );
     }
 
-    const reading = await storage.createReading({
+    const input = {
       periodStart: preview.periodStart,
       periodEnd: preview.periodEnd,
       hepVtKwh: preview.hepVtKwh,
@@ -37,9 +39,27 @@ export async function POST(
       hepTotalSupply: preview.hepTotalSupply,
       hepFees: preview.hepFees,
       hepGrandTotal: preview.hepGrandTotal,
+      hepStartVt: preview.hepStartVt,
+      hepEndVt: preview.hepEndVt,
+      hepStartNt: preview.hepStartNt,
+      hepEndNt: preview.hepEndNt,
       sourcePdfId: pdf.id,
       sourcePdfName: pdf.filename,
-      origin: "parsed",
+      origin: "parsed" as const,
+    };
+
+    // Resolve deltas against the chronological predecessor.
+    const all = await storage.listReadings();
+    const prev = previousReading(all, input.periodStart);
+    const { consumption, startEnd } = resolveReadingDeltas(input, prev);
+
+    const reading = await storage.createReading({
+      ...input,
+      ...startEnd,
+      hepVtKwh: consumption.hepVtKwh,
+      hepNtKwh: consumption.hepNtKwh,
+      upperVtKwh: consumption.upperVtKwh,
+      upperNtKwh: consumption.upperNtKwh,
     });
 
     // Link the reading to the inbox item so it's known to be used.

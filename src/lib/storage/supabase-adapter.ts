@@ -21,6 +21,14 @@ type ReadingRow = {
   hep_grand_total: number;
   upper_vt_kwh: number;
   upper_nt_kwh: number;
+  hep_start_vt: number | null;
+  hep_end_vt: number | null;
+  hep_start_nt: number | null;
+  hep_end_nt: number | null;
+  upper_start_vt: number | null;
+  upper_end_vt: number | null;
+  upper_start_nt: number | null;
+  upper_end_nt: number | null;
   status: string | null;
   origin: string | null;
   created_at: string;
@@ -44,7 +52,7 @@ type TariffRow = {
 };
 
 const READING_ROWS =
-  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,status,origin,created_at,updated_at";
+  "id,period_start,period_end,hep_vt_kwh,hep_nt_kwh,hep_total_supply,hep_fees,hep_grand_total,upper_vt_kwh,upper_nt_kwh,hep_start_vt,hep_end_vt,hep_start_nt,hep_end_nt,upper_start_vt,upper_end_vt,upper_start_nt,upper_end_nt,status,origin,created_at,updated_at";
 
 function toReading(row: ReadingRow): Reading {
   return {
@@ -58,6 +66,14 @@ function toReading(row: ReadingRow): Reading {
     hepGrandTotal: row.hep_grand_total,
     upperVtKwh: row.upper_vt_kwh,
     upperNtKwh: row.upper_nt_kwh,
+    ...(row.hep_start_vt !== null ? { hepStartVt: row.hep_start_vt } : {}),
+    ...(row.hep_end_vt !== null ? { hepEndVt: row.hep_end_vt } : {}),
+    ...(row.hep_start_nt !== null ? { hepStartNt: row.hep_start_nt } : {}),
+    ...(row.hep_end_nt !== null ? { hepEndNt: row.hep_end_nt } : {}),
+    ...(row.upper_start_vt !== null ? { upperStartVt: row.upper_start_vt } : {}),
+    ...(row.upper_end_vt !== null ? { upperEndVt: row.upper_end_vt } : {}),
+    ...(row.upper_start_nt !== null ? { upperStartNt: row.upper_start_nt } : {}),
+    ...(row.upper_end_nt !== null ? { upperEndNt: row.upper_end_nt } : {}),
     ...(row.status ? { status: row.status as Reading["status"] } : {}),
     ...(row.origin ? { origin: row.origin as Reading["origin"] } : {}),
     createdAt: row.created_at,
@@ -138,6 +154,14 @@ export class SupabaseAdapter extends StorageAdapter {
       hepGrandTotal?: number;
       upperVtKwh?: number;
       upperNtKwh?: number;
+      hepStartVt?: number;
+      hepEndVt?: number;
+      hepStartNt?: number;
+      hepEndNt?: number;
+      upperStartVt?: number;
+      upperEndVt?: number;
+      upperStartNt?: number;
+      upperEndNt?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
       origin?: Readonly<Reading>["origin"];
@@ -155,6 +179,14 @@ export class SupabaseAdapter extends StorageAdapter {
         hep_grand_total: input.hepGrandTotal ?? 0,
         upper_vt_kwh: input.upperVtKwh ?? 0,
         upper_nt_kwh: input.upperNtKwh ?? 0,
+        hep_start_vt: input.hepStartVt ?? null,
+        hep_end_vt: input.hepEndVt ?? null,
+        hep_start_nt: input.hepStartNt ?? null,
+        hep_end_nt: input.hepEndNt ?? null,
+        upper_start_vt: input.upperStartVt ?? null,
+        upper_end_vt: input.upperEndVt ?? null,
+        upper_start_nt: input.upperStartNt ?? null,
+        upper_end_nt: input.upperEndNt ?? null,
         source_pdf_id: input.sourcePdfId ?? null,
         source_pdf_name: input.sourcePdfName ?? null,
         status: computeSupabaseStatus(input),

@@ -24,6 +24,11 @@ export interface HepParseResult {
   hepGrandTotal?: number;
   /** kWh already billed by HEP above the 3,000 threshold this period. */
   hepOverageKwh?: number;
+  /** Cumulative meter readings (Stanje od/do) where present on the invoice. */
+  hepStartVt?: number;
+  hepEndVt?: number;
+  hepStartNt?: number;
+  hepEndNt?: number;
   /** How likely the parse is to be trustworthy (0-1). */
   confidence: number;
 }
@@ -84,30 +89,49 @@ function parsePeriod(text: string): {
 }
 
 /**
- * Extract VT/NT total kWh from the meter-reading section. Rows look like:
+ * Extract VT/NT from the meter-reading section. Rows look like:
  *   92094529 01.07.2026 31.07.2026 RVT R1 00008196,43 00008845,93 - očitanje 1 649,51
  *   RNT R2 00006348,24 00006736,69 - očitanje 1 388,45
- * where the final figure after "očitanje <const>" is the "Potrošak".
+ * The two leading figures are the cumulative 'Stanje od' and 'Stanje do'; the
+ * final figure after "očitanje <const>" is the "Potrošak" (delta).
  */
 function parseMeterConsumption(text: string): {
   vt?: number;
   nt?: number;
+  hepStartVt?: number;
+  hepEndVt?: number;
+  hepStartNt?: number;
+  hepEndNt?: number;
 } {
   const lines = normalize(text).split("\n");
   let vt: number | undefined;
   let nt: number | undefined;
+  let hepStartVt: number | undefined;
+  let hepEndVt: number | undefined;
+  let hepStartNt: number | undefined;
+  let hepEndNt: number | undefined;
   for (const line of lines) {
     if (!/RVT|RNT/i.test(line)) continue;
+    // Stanje od / Stanje do are the two figures right after the tariff code.
     const m = line.match(
-      /\b(RVT|RNT)\b[^\n]*?očit[^\n]*?\s+\d+\s+(\d+(?:[.,]\d+)?)/i,
+      /\b(RVT|RNT)\b[^\n]*?(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)[^\n]*?očit[^\n]*?\s+\d+\s+(\d+(?:[.,]\d+)?)/i,
     );
     if (!m) continue;
-    const val = toNumber(m[2]);
-    if (val === undefined) continue;
-    if (m[1]!.toUpperCase() === "RVT") vt = val;
-    if (m[1]!.toUpperCase() === "RNT") nt = val;
+    const start = toNumber(m[2]);
+    const end = toNumber(m[3]);
+    const delta = toNumber(m[4]);
+    if (m[1]!.toUpperCase() === "RVT") {
+      vt = delta;
+      hepStartVt = start;
+      hepEndVt = end;
+    }
+    if (m[1]!.toUpperCase() === "RNT") {
+      nt = delta;
+      hepStartNt = start;
+      hepEndNt = end;
+    }
   }
-  return { vt, nt };
+  return { vt, nt, hepStartVt, hepEndVt, hepStartNt, hepEndNt };
 }
 
 /** Match a labelled monetary amount, e.g. "UKUPAN IZNOS RAČUNA 193,60". */
@@ -168,6 +192,10 @@ export function parseHepInvoice(rawText: string): HepParseResult {
     ...period,
     hepVtKwh: meter.vt,
     hepNtKwh: meter.nt,
+    hepStartVt: meter.hepStartVt,
+    hepEndVt: meter.hepEndVt,
+    hepStartNt: meter.hepStartNt,
+    hepEndNt: meter.hepEndNt,
     hepTotalSupply: supply,
     hepFees: fees,
     hepGrandTotal: grandTotal,

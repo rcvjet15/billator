@@ -24,6 +24,14 @@ type ReadingRow = {
   hep_grand_total: number;
   upper_vt_kwh: number;
   upper_nt_kwh: number;
+  hep_start_vt: number | null;
+  hep_end_vt: number | null;
+  hep_start_nt: number | null;
+  hep_end_nt: number | null;
+  upper_start_vt: number | null;
+  upper_end_vt: number | null;
+  upper_start_nt: number | null;
+  upper_end_nt: number | null;
   source_pdf_id: string | null;
   source_pdf_name: string | null;
   status: string | null;
@@ -150,6 +158,22 @@ export class SqliteAdapter extends StorageAdapter {
     if (!cols.some((c) => c.name === "origin")) {
       this.db.exec(`ALTER TABLE readings ADD COLUMN origin TEXT NOT NULL DEFAULT 'manual'`);
     }
+    // Cumulative (odometer) meter columns.
+    const cum: [string, string][] = [
+      ["hep_start_vt", "hepStartVt"],
+      ["hep_end_vt", "hepEndVt"],
+      ["hep_start_nt", "hepStartNt"],
+      ["hep_end_nt", "hepEndNt"],
+      ["upper_start_vt", "upperStartVt"],
+      ["upper_end_vt", "upperEndVt"],
+      ["upper_start_nt", "upperStartNt"],
+      ["upper_end_nt", "upperEndNt"],
+    ];
+    for (const [col] of cum) {
+      if (!cols.some((c) => c.name === col)) {
+        this.db.exec(`ALTER TABLE readings ADD COLUMN ${col} REAL`);
+      }
+    }
   }
 
   close(): void {
@@ -174,6 +198,14 @@ export class SqliteAdapter extends StorageAdapter {
       updatedAt: r.updated_at,
       ...(r.status ? { status: r.status as Reading["status"] } : {}),
       ...(r.origin ? { origin: r.origin as Reading["origin"] } : {}),
+      ...(r.hep_start_vt !== null ? { hepStartVt: r.hep_start_vt } : {}),
+      ...(r.hep_end_vt !== null ? { hepEndVt: r.hep_end_vt } : {}),
+      ...(r.hep_start_nt !== null ? { hepStartNt: r.hep_start_nt } : {}),
+      ...(r.hep_end_nt !== null ? { hepEndNt: r.hep_end_nt } : {}),
+      ...(r.upper_start_vt !== null ? { upperStartVt: r.upper_start_vt } : {}),
+      ...(r.upper_end_vt !== null ? { upperEndVt: r.upper_end_vt } : {}),
+      ...(r.upper_start_nt !== null ? { upperStartNt: r.upper_start_nt } : {}),
+      ...(r.upper_end_nt !== null ? { upperEndNt: r.upper_end_nt } : {}),
       ...(r.source_pdf_id
         ? { sourcePdfId: r.source_pdf_id, sourcePdfName: r.source_pdf_name ?? undefined }
         : {}),
@@ -203,6 +235,14 @@ export class SqliteAdapter extends StorageAdapter {
       hepGrandTotal?: number;
       upperVtKwh?: number;
       upperNtKwh?: number;
+      hepStartVt?: number;
+      hepEndVt?: number;
+      hepStartNt?: number;
+      hepEndNt?: number;
+      upperStartVt?: number;
+      upperEndVt?: number;
+      upperStartNt?: number;
+      upperEndNt?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
       origin?: Reading["origin"];
@@ -216,8 +256,10 @@ export class SqliteAdapter extends StorageAdapter {
       .prepare(
         `INSERT INTO readings (id, period_start, period_end, hep_vt_kwh, hep_nt_kwh,
           hep_total_supply, hep_fees, hep_grand_total, upper_vt_kwh, upper_nt_kwh,
+          hep_start_vt, hep_end_vt, hep_start_nt, hep_end_nt,
+          upper_start_vt, upper_end_vt, upper_start_nt, upper_end_nt,
           source_pdf_id, source_pdf_name, status, origin, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .run(
         id,
@@ -230,6 +272,14 @@ export class SqliteAdapter extends StorageAdapter {
         input.hepGrandTotal ?? 0,
         input.upperVtKwh ?? 0,
         input.upperNtKwh ?? 0,
+        input.hepStartVt ?? null,
+        input.hepEndVt ?? null,
+        input.hepStartNt ?? null,
+        input.hepEndNt ?? null,
+        input.upperStartVt ?? null,
+        input.upperEndVt ?? null,
+        input.upperStartNt ?? null,
+        input.upperEndNt ?? null,
         input.sourcePdfId ?? null,
         input.sourcePdfName ?? null,
         status,
@@ -250,6 +300,8 @@ export class SqliteAdapter extends StorageAdapter {
         .prepare(
           `UPDATE readings SET period_start=?, period_end=?, hep_vt_kwh=?, hep_nt_kwh=?,
             hep_total_supply=?, hep_fees=?, hep_grand_total=?, upper_vt_kwh=?, upper_nt_kwh=?,
+            hep_start_vt=?, hep_end_vt=?, hep_start_nt=?, hep_end_nt=?,
+            upper_start_vt=?, upper_end_vt=?, upper_start_nt=?, upper_end_nt=?,
             source_pdf_id=?, source_pdf_name=?, status=?, origin=?, updated_at=?
            WHERE id=?`,
         )
@@ -263,6 +315,14 @@ export class SqliteAdapter extends StorageAdapter {
           merged.hepGrandTotal ?? 0,
           merged.upperVtKwh ?? 0,
           merged.upperNtKwh ?? 0,
+          merged.hepStartVt ?? null,
+          merged.hepEndVt ?? null,
+          merged.hepStartNt ?? null,
+          merged.hepEndNt ?? null,
+          merged.upperStartVt ?? null,
+          merged.upperEndVt ?? null,
+          merged.upperStartNt ?? null,
+          merged.upperEndNt ?? null,
           merged.sourcePdfId ?? null,
           merged.sourcePdfName ?? null,
           status,

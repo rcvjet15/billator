@@ -30,6 +30,14 @@ export abstract class StorageAdapter {
       hepGrandTotal?: number;
       upperVtKwh?: number;
       upperNtKwh?: number;
+      hepStartVt?: number;
+      hepEndVt?: number;
+      hepStartNt?: number;
+      hepEndNt?: number;
+      upperStartVt?: number;
+      upperEndVt?: number;
+      upperStartNt?: number;
+      upperEndNt?: number;
       sourcePdfId?: string;
       sourcePdfName?: string;
       origin?: Reading["origin"];

@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
+import { previousReading } from "@/lib/calc/delta";
 import { parseHepInvoice } from "@/lib/parse/hep";
 import type { HepParseResult } from "@/lib/parse/hep";
-import type { ReadingInput, InboxPdf } from "@/lib/calc/types";
+import type { ReadingInput, InboxPdf, Reading } from "@/lib/calc/types";
 
 interface ReadingFormProps {
   onSubmit: (input: ReadingInput) => Promise<unknown>;
@@ -43,6 +44,14 @@ function stripInitial(initial: { id: string } & ReadingInput): ReadingInput {
     hepGrandTotal: rest.hepGrandTotal ?? 0,
     upperVtKwh: rest.upperVtKwh ?? 0,
     upperNtKwh: rest.upperNtKwh ?? 0,
+    ...(rest.hepStartVt !== undefined ? { hepStartVt: rest.hepStartVt } : {}),
+    ...(rest.hepEndVt !== undefined ? { hepEndVt: rest.hepEndVt } : {}),
+    ...(rest.hepStartNt !== undefined ? { hepStartNt: rest.hepStartNt } : {}),
+    ...(rest.hepEndNt !== undefined ? { hepEndNt: rest.hepEndNt } : {}),
+    ...(rest.upperStartVt !== undefined ? { upperStartVt: rest.upperStartVt } : {}),
+    ...(rest.upperEndVt !== undefined ? { upperEndVt: rest.upperEndVt } : {}),
+    ...(rest.upperStartNt !== undefined ? { upperStartNt: rest.upperStartNt } : {}),
+    ...(rest.upperEndNt !== undefined ? { upperEndNt: rest.upperEndNt } : {}),
     ...(rest.sourcePdfId ? { sourcePdfId: rest.sourcePdfId, sourcePdfName: rest.sourcePdfName } : {}),
   };
 }
@@ -70,6 +79,7 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
   const [sourcePdfId, setSourcePdfId] = useState<string | undefined>(
     initial?.sourcePdfId,
   );
+  const [allReadings, setAllReadings] = useState<Reading[]>([]);
 
   // Load the invoice inbox (downloaded PDFs) to pick from.
   useEffect(() => {
@@ -78,6 +88,31 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
       .then((res) => setInbox(res.inbox))
       .catch(() => undefined);
   }, []);
+
+  // Load all readings to resolve the previous month's cumulative values.
+  useEffect(() => {
+    api
+      .listReadings()
+      .then((res) => setAllReadings(res.readings))
+      .catch(() => undefined);
+  }, []);
+
+  // Previous reading for the selected period (chronological predecessor).
+  const prev = useMemo(
+    () =>
+      form.periodStart
+        ? previousReading(allReadings, form.periodStart)
+        : null,
+    [allReadings, form.periodStart],
+  );
+
+  // Live delta for a channel: current End - previous End.
+  const liveDelta = (end: number | undefined, prevEnd: number | undefined): number | null => {
+    if (end === undefined || end === null) return null;
+    if (prevEnd !== undefined && prevEnd !== null && end < prevEnd) return end; // reset
+    const base = prevEnd ?? end;
+    return end - base;
+  };
 
   const set = (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -100,6 +135,10 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
       hepTotalSupply: r.hepTotalSupply ?? f.hepTotalSupply,
       hepFees: r.hepFees ?? f.hepFees,
       hepGrandTotal: r.hepGrandTotal ?? f.hepGrandTotal,
+      hepStartVt: r.hepStartVt ?? f.hepStartVt,
+      hepEndVt: r.hepEndVt ?? f.hepEndVt,
+      hepStartNt: r.hepStartNt ?? f.hepStartNt,
+      hepEndNt: r.hepEndNt ?? f.hepEndNt,
       ...(source
         ? { sourcePdfId: source.id, sourcePdfName: source.name }
         : {}),
@@ -258,39 +297,57 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
         </div>
       </div>
 
-      <fieldset className="grid grid-cols-3 gap-4 rounded-lg border border-border p-4">
-        <legend className="px-2 text-sm font-medium">HEP meter (main build)</legend>
-        <div>
-          <label className="text-sm font-medium">VT kWh</label>
-          <Input type="number" min="0" step="0.0001" value={form.hepVtKwh} onChange={setNum("hepVtKwh")} />
+      <fieldset className="grid grid-cols-1 gap-4 rounded-lg border border-border p-4 sm:grid-cols-3">
+        <legend className="px-2 text-sm font-medium">HEP meter (main build) — cumulative</legend>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">VT end (counter)</label>
+          <div className="flex items-center gap-2">
+            <Input type="number" min="0" step="0.0001" placeholder="e.g. 8845.93" value={form.hepEndVt ?? ""} onChange={setNum("hepEndVt")} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Prev: <strong>{prev?.hepEndVt ?? "— (baseline)"}</strong>
+            {(() => { const d = liveDelta(form.hepEndVt, prev?.hepEndVt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
+          </p>
         </div>
-        <div>
-          <label className="text-sm font-medium">NT kWh</label>
-          <Input type="number" min="0" step="0.0001" value={form.hepNtKwh} onChange={setNum("hepNtKwh")} />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">NT end (counter)</label>
+          <Input type="number" min="0" step="0.0001" placeholder="e.g. 6736.69" value={form.hepEndNt ?? ""} onChange={setNum("hepEndNt")} />
+          <p className="text-xs text-muted-foreground">
+            Prev: <strong>{prev?.hepEndNt ?? "— (baseline)"}</strong>
+            {(() => { const d = liveDelta(form.hepEndNt, prev?.hepEndNt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
+          </p>
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Supply (EUR)</label>
           <Input type="number" min="0" step="0.0001" value={form.hepTotalSupply} onChange={setNum("hepTotalSupply")} />
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Fees (EUR)</label>
           <Input type="number" min="0" step="0.0001" value={form.hepFees} onChange={setNum("hepFees")} />
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Grand total (EUR)</label>
           <Input type="number" min="0" step="0.0001" value={form.hepGrandTotal} onChange={setNum("hepGrandTotal")} />
         </div>
       </fieldset>
 
       <fieldset className="grid grid-cols-2 gap-4 rounded-lg border border-border p-4">
-        <legend className="px-2 text-sm font-medium">Upper floor monitor</legend>
-        <div>
-          <label className="text-sm font-medium">VT kWh</label>
-          <Input type="number" min="0" step="0.0001" value={form.upperVtKwh} onChange={setNum("upperVtKwh")} />
+        <legend className="px-2 text-sm font-medium">Upper floor monitor — cumulative</legend>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">VT end (counter)</label>
+          <Input type="number" min="0" step="0.0001" value={form.upperEndVt ?? ""} onChange={setNum("upperEndVt")} />
+          <p className="text-xs text-muted-foreground">
+            Prev: <strong>{prev?.upperEndVt ?? "— (baseline)"}</strong>
+            {(() => { const d = liveDelta(form.upperEndVt, prev?.upperEndVt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
+          </p>
         </div>
-        <div>
-          <label className="text-sm font-medium">NT kWh</label>
-          <Input type="number" min="0" step="0.0001" value={form.upperNtKwh} onChange={setNum("upperNtKwh")} />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">NT end (counter)</label>
+          <Input type="number" min="0" step="0.0001" value={form.upperEndNt ?? ""} onChange={setNum("upperEndNt")} />
+          <p className="text-xs text-muted-foreground">
+            Prev: <strong>{prev?.upperEndNt ?? "— (baseline)"}</strong>
+            {(() => { const d = liveDelta(form.upperEndNt, prev?.upperEndNt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
+          </p>
         </div>
       </fieldset>
 
