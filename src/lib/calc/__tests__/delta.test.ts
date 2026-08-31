@@ -45,6 +45,15 @@ describe("resolveChannelDelta", () => {
     expect(resolveChannelDelta({ start: 100, end: 150 })).toEqual({ start: 100, end: 150, delta: 50 });
   });
 
+  it("rounds the delta to 3 decimals", () => {
+    // 150.1236 - 100 = 50.1236 -> rounds to 50.124
+    expect(resolveChannelDelta({ start: 100, end: 150.1236 })).toEqual({
+      start: 100,
+      end: 150.1236,
+      delta: 50.124,
+    });
+  });
+
   it("uses predecessor end as start when only end provided", () => {
     expect(resolveChannelDelta({ end: 150 }, { end: 100 })).toEqual({
       start: 100,

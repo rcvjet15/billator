@@ -1,5 +1,10 @@
 import type { Reading } from "@/lib/calc/types";
 
+/** Round a kWh delta to 3 decimals. */
+function round3(n: number): number {
+  return Math.round((n + Number.EPSILON) * 1000) / 1000;
+}
+
 export type MeterChannel = "vt" | "nt";
 export type MeterOwner = "hep" | "upper";
 
@@ -46,26 +51,26 @@ export function resolveChannelDelta(
   if (start !== undefined && end !== undefined) {
     // Both provided: delta = end - start.
     if (end < start) {
-      return { start, end, delta: end, reset: true };
+      return { start, end, delta: round3(end), reset: true };
     }
-    return { start, end, delta: end - start };
+    return { start, end, delta: round3(end - start) };
   }
 
   if (end !== undefined) {
     if (prevEnd !== undefined && end >= prevEnd) {
       // Use predecessor's end as the start.
-      return { start: prevEnd, end, delta: end - prevEnd };
+      return { start: prevEnd, end, delta: round3(end - prevEnd) };
     }
     if (prevEnd !== undefined && end < prevEnd) {
       // Meter reset/wrap: treat end as the new baseline in place.
-      return { start: prevEnd, end, delta: end, reset: true };
+      return { start: prevEnd, end, delta: round3(end), reset: true };
     }
     // No predecessor (baseline): record end, start = end, no consumption.
     return { start: end, end, delta: 0 };
   }
 
   // No end provided: fall back to derived consumption if given.
-  return { start, end, delta: input.derived ?? 0 };
+  return { start, end, delta: round3(input.derived ?? 0) };
 }
 
 export interface DeltasResult {
