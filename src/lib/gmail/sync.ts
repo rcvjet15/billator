@@ -5,6 +5,9 @@ import type { InboxPdf, SyncLog, SyncTrigger } from "@/lib/calc/types";
 import { getGmailClient, type GmailClient } from "@/lib/gmail/client";
 import { parseHepPdfBuffer } from "@/lib/parse/hep";
 import { sendPush } from "@/lib/push/send";
+import { sendHaNotification } from "@/lib/ha/notify";
+import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
+import { getTariffConfig } from "@/lib/config-service";
 import { loadSettings } from "@/lib/settings";
 import { StorageService } from "@/lib/storage-service";
 
@@ -132,6 +135,12 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
     let downloadedCount = 0;
     let skippedCount = 0;
     let lastEmail: SyncOutcome["lastEmail"] = undefined;
+    // Track the parsed bill figures for the outgoing notification.
+    let parsedVtKwh = 0;
+    let parsedNtKwh = 0;
+    let parsedGrandTotal: number | undefined;
+    let parsedPeriodStart: string | undefined;
+    let parsedPeriodEnd: string | undefined;
 
     for (const msg of messages) {
       const messageId = msg.id!;
@@ -187,6 +196,11 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
           const r = await parseHepPdfBuffer(bytes);
           if (r && r.confidence > 0) {
             anyParsed = true;
+            parsedVtKwh = r.hepVtKwh ?? parsedVtKwh;
+            parsedNtKwh = r.hepNtKwh ?? parsedNtKwh;
+            if (r.hepGrandTotal !== undefined) parsedGrandTotal = r.hepGrandTotal;
+            if (r.periodStart) parsedPeriodStart = r.periodStart;
+            if (r.periodEnd) parsedPeriodEnd = r.periodEnd;
             parsePreview = {
               periodStart: r.periodStart,
               periodEnd: r.periodEnd,
@@ -254,10 +268,30 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
 
     // Push a notification when a genuinely new invoice was downloaded.
     if (downloadedCount > 0) {
+      const grandTotal = parsedGrandTotal;
+      const upperSplit = await estimateUpperSplitForParsed(
+        storage,
+        parsedPeriodStart,
+        parsedPeriodEnd,
+        parsedVtKwh,
+        parsedNtKwh,
+      );
+
+      const body = buildBillMessage({ grandTotal, upperSplit });
+
       void sendPush({
         title: "New HEP bill synced",
         body: lastEmail?.subject || `Downloaded ${downloadedCount} attachment(s)`,
         url: "/readings",
+      }).catch(() => undefined);
+
+      // Autonomous server-side notification through Home Assistant.
+      void sendHaNotification({
+        title: "New HEP bill synced",
+        message: body,
+        data: parsedPeriodStart
+          ? { period: `${parsedPeriodStart} → ${parsedPeriodEnd ?? parsedPeriodStart}` }
+          : undefined,
       }).catch(() => undefined);
     }
 
@@ -284,6 +318,78 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+/**
+ * Estimate the upper-floor split amount for a freshly parsed HEP bill.
+ *
+ * Looks up an existing stored reading that overlaps the parsed period to fetch
+ * the upper-floor VT/NT (those come from a separate submeter / manual import and
+ * can't be derived from the HEP PDF). Falls back to the parsed HEP values alone
+ * (which yields a 0-upper reading) when no matching reading is found yet.
+ */
+async function estimateUpperSplitForParsed(
+  storage: ReturnType<typeof StorageService["getInstance"]>,
+  periodStart: string | undefined,
+  periodEnd: string | undefined,
+  hepVtKwh: number,
+  hepNtKwh: number,
+): Promise<number | undefined> {
+  if (!periodStart || !periodEnd) return undefined;
+  try {
+    const readings = await storage.listReadings();
+    const match =
+      readings.find(
+        (r) =>
+          r.periodStart === periodStart && r.periodEnd === periodEnd,
+      ) ??
+      readings.find(
+        (r) =>
+          (!periodStart || r.periodStart <= periodEnd) &&
+          (!periodEnd || r.periodEnd >= periodStart),
+      );
+
+    const reading =
+      match ??
+      ({
+        id: "parsed-preview",
+        periodStart,
+        periodEnd,
+        hepVtKwh,
+        hepNtKwh,
+        hepTotalSupply: 0,
+        hepFees: 0,
+        hepGrandTotal: 0,
+        upperVtKwh: 0,
+        upperNtKwh: 0,
+        createdAt: "",
+        updatedAt: "",
+      } as import("@/lib/calc/types").Reading);
+    if (!reading) return undefined;
+
+    const tariff = await getTariffConfig();
+    return estimateReadingUpperCost(reading, tariff);
+  } catch (err) {
+    console.error(`[ha-notify] Could not estimate upper split: ${(err as Error).message}`);
+    return undefined;
+  }
+}
+
+/** Compose a human-friendly summary message from available bill figures. */
+function buildBillMessage(opts: {
+  grandTotal?: number;
+  upperSplit?: number;
+}): string {
+  const parts: string[] = [];
+  if (opts.grandTotal !== undefined) {
+    parts.push(`Billed total: €${opts.grandTotal.toFixed(2)}`);
+  } else {
+    parts.push("A new HEP bill was synced.");
+  }
+  if (opts.upperSplit !== undefined) {
+    parts.push(`Upper floor split: ~€${opts.upperSplit.toFixed(2)}`);
+  }
+  return parts.join(" · ");
 }
 
 async function logSync(

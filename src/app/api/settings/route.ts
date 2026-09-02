@@ -16,6 +16,11 @@ function toClient(settings: AppSettings): AppSettings {
       clientSecret:
         settings.gmail.hasClientSecret ? "########" : "",
     },
+    homeAssistant: {
+      ...settings.homeAssistant,
+      // Mask the token; the settings form treats it as write-only.
+      token: settings.homeAssistant.token ? "########" : "",
+    },
   };
 }
 
@@ -50,6 +55,7 @@ export async function PUT(req: NextRequest) {
   const tariffs = (b.tariffs || {}) as Record<string, unknown>;
   const semesters = (b.semesters || {}) as Record<string, unknown>;
   const notifications = (b.notifications || {}) as Record<string, unknown>;
+  const homeAssistant = (b.homeAssistant || {}) as Record<string, unknown>;
   const advanced = (b.advanced || {}) as Record<string, unknown>;
 
   try {
@@ -148,6 +154,25 @@ export async function PUT(req: NextRequest) {
       notifPatch.subscribed = notifications.subscribed;
     if (Object.keys(notifPatch).length > 0) {
       await saveSettings({ notifications: notifPatch } as Partial<AppSettings>);
+    }
+
+    // Home Assistant
+    const haPatch: Partial<AppSettings["homeAssistant"]> = {};
+    if (typeof homeAssistant.enabled === "boolean")
+      haPatch.enabled = homeAssistant.enabled;
+    if (typeof homeAssistant.url === "string") haPatch.url = homeAssistant.url;
+    if (typeof homeAssistant.deviceName === "string")
+      haPatch.deviceName = homeAssistant.deviceName;
+    // Token is write-only: ignore the "########" mask and only persist a real token.
+    if (
+      typeof homeAssistant.token === "string" &&
+      homeAssistant.token &&
+      homeAssistant.token !== "########"
+    ) {
+      haPatch.token = homeAssistant.token;
+    }
+    if (Object.keys(haPatch).length > 0) {
+      await saveSettings({ homeAssistant: haPatch } as Partial<AppSettings>);
     }
 
     // Re-resolve and return with masked secrets.

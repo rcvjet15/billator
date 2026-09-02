@@ -8,7 +8,20 @@ export interface AppSettings {
   tariffs: TariffConfig;
   semesters: SemesterCycleSettings;
   notifications: NotificationsSettings;
+  homeAssistant: HomeAssistantSettings;
   advanced: AdvancedSettings;
+}
+
+/** Home Assistant outgoing notification bridge. */
+export interface HomeAssistantSettings {
+  /** Master toggle for Home Assistant notifications. */
+  enabled: boolean;
+  /** Base URL of the Home Assistant instance, e.g. http://192.168.1.20:8123. */
+  url: string;
+  /** Long-Lived Access Token (LLAT) for authorization. */
+  token: string;
+  /** Device/entity name targeting the notify service (mobile_app_<name>). */
+  deviceName: string;
 }
 
 /** Web Push notification settings. */

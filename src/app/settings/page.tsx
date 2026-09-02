@@ -13,7 +13,7 @@ import { usePush } from "@/hooks/usePush";
 import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
 
-type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "semesters" | "advanced";
+type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "semesters" | "notifications" | "homeAssistant" | "advanced";
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "gmail", label: "Gmail" },
@@ -21,6 +21,8 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "storage", label: "Storage / PDF" },
   { id: "tariffs", label: "Tariffs" },
   { id: "semesters", label: "Semesters" },
+  { id: "notifications", label: "Notifications" },
+  { id: "homeAssistant", label: "Home Assistant" },
   { id: "advanced", label: "Advanced" },
 ];
 
@@ -29,6 +31,8 @@ export default function SettingsPage() {
   const toast = useToast();
   const [active, setActive] = useState<TabId>("gmail");
   const [draft, setDraft] = useState<AppSettings | null>(null);
+  const [testingHa, setTestingHa] = useState(false);
+  const [haTestResult, setHaTestResult] = useState<string | null>(null);
 
   // Local draft initialized from loaded settings.
   const current = draft ?? settings;
@@ -51,6 +55,40 @@ export default function SettingsPage() {
       console.error(`[settings] save failed: ${e.message}`, e);
       console.error(e.stack);
       toast.show("error", `Failed to save ${label}.`, e.message);
+    }
+  };
+
+  // Fire a test notification through Home Assistant to verify the bridge.
+  const testHaNotification = async () => {
+    setTestingHa(true);
+    setHaTestResult(null);
+    try {
+      const res = await fetch("/api/ha/test", { method: "POST" });
+      const d = (await res.json()) as {
+        sent?: boolean;
+        configured?: boolean;
+        enabled?: boolean;
+        error?: string;
+      };
+      if (d.sent) {
+        setHaTestResult("Sent — check your phone / HA notification.");
+        toast.show("success", "Home Assistant test notification sent.");
+      } else if (!d.configured) {
+        setHaTestResult("Not configured — set the URL and token first.");
+        toast.show("warning", "Home Assistant is not configured.");
+      } else if (!d.enabled) {
+        setHaTestResult("Disabled — enable Home Assistant notifications.");
+        toast.show("warning", "Home Assistant notifications are disabled.");
+      } else {
+        setHaTestResult("Send failed — check HA logs / token.");
+        toast.show("error", d.error ?? "Home Assistant send failed.");
+      }
+    } catch (err) {
+      const e = err as Error;
+      setHaTestResult("Request failed.");
+      toast.show("error", `Test request failed: ${e.message}`);
+    } finally {
+      setTestingHa(false);
     }
   };
 
@@ -207,6 +245,87 @@ export default function SettingsPage() {
               >
                 Save Gmail settings
               </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {active === "homeAssistant" && (
+        <Card>
+          <CardHeader
+            title="Home Assistant"
+            subtitle="Send bill notifications through Home Assistant's notify services."
+          />
+          <div className="flex flex-col gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={current.homeAssistant.enabled}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  patchDraft((d) => ({
+                    ...d,
+                    homeAssistant: { ...d.homeAssistant, enabled: v },
+                  }));
+                  void persist({ homeAssistant: { enabled: v } } as Partial<AppSettings>);
+                }}
+              />
+              Enable Home Assistant notifications
+            </label>
+            <Field
+              label="Home Assistant URL"
+              value={current.homeAssistant.url}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  homeAssistant: { ...d.homeAssistant, url: v },
+                }))
+              }
+              placeholder="http://192.168.1.20:8123"
+              hint="Base URL of your Home Assistant instance."
+            />
+            <Field
+              label="Long-Lived Access Token"
+              value={current.homeAssistant.token}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  homeAssistant: { ...d.homeAssistant, token: v },
+                }))
+              }
+              type="password"
+              placeholder={current.homeAssistant.token ? "Stored (enter to replace)" : "HA LLAT token"}
+            />
+            <Field
+              label="Device name"
+              value={current.homeAssistant.deviceName}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  homeAssistant: { ...d.homeAssistant, deviceName: v },
+                }))
+              }
+              placeholder="sm_s908b, sm_x210"
+              hint="Targets notify.mobile_app_<name>. Use a comma-separated list for multiple devices (e.g. sm_s908b, sm_x210)."
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() =>
+                  void persist(
+                    { homeAssistant: current.homeAssistant } as Partial<AppSettings>,
+                    "Home Assistant settings",
+                  )
+                }
+                loading={saving}
+              >
+                Save Home Assistant settings
+              </Button>
+              <Button variant="outline" onClick={() => void testHaNotification()} loading={testingHa}>
+                Test notification
+              </Button>
+              {haTestResult && (
+                <span className="text-sm text-muted-foreground">{haTestResult}</span>
+              )}
             </div>
           </div>
         </Card>

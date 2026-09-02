@@ -37,6 +37,12 @@ const DEFAULTS: AppSettings = {
     enabled: false,
     subscribed: false,
   },
+  homeAssistant: {
+    enabled: true,
+    url: "http://homeassistant.local:8123",
+    token: "",
+    deviceName: "phone",
+  },
   advanced: {
     syncLogRetention: 100,
   },
@@ -129,6 +135,18 @@ export async function loadSettings(): Promise<AppSettings> {
       s.notifications.subscribed,
   };
 
+  s.homeAssistant = {
+    ...s.homeAssistant,
+    enabled:
+      bool(await storage.getSetting(`${KEY_PREFIX}homeAssistant.enabled`)) ??
+      s.homeAssistant.enabled,
+    url: (await storage.getSetting(`${KEY_PREFIX}homeAssistant.url`)) || s.homeAssistant.url,
+    token: (await storage.getSetting(`${KEY_PREFIX}homeAssistant.token`)) || s.homeAssistant.token,
+    deviceName:
+      (await storage.getSetting(`${KEY_PREFIX}homeAssistant.deviceName`)) ||
+      s.homeAssistant.deviceName,
+  };
+
   s.advanced = {
     ...s.advanced,
     syncLogRetention:
@@ -198,6 +216,16 @@ export async function saveSettings(
     if (n.enabled !== undefined) set(`${KEY_PREFIX}notifications.enabled`, n.enabled);
     if (n.subscribed !== undefined)
       set(`${KEY_PREFIX}notifications.subscribed`, n.subscribed);
+  }
+
+  if (patch.homeAssistant) {
+    const ha = patch.homeAssistant;
+    if (ha.enabled !== undefined)
+      set(`${KEY_PREFIX}homeAssistant.enabled`, ha.enabled);
+    if (ha.url !== undefined) set(`${KEY_PREFIX}homeAssistant.url`, ha.url);
+    if (ha.token !== undefined) set(`${KEY_PREFIX}homeAssistant.token`, ha.token);
+    if (ha.deviceName !== undefined)
+      set(`${KEY_PREFIX}homeAssistant.deviceName`, ha.deviceName);
   }
 
   if (patch.advanced) {

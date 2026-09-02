@@ -36,6 +36,12 @@ export const env = {
     subject: process.env.VAPID_SUBJECT || "mailto:robertcvjetkovic15@gmail.com",
   },
 
+  // Home Assistant outgoing notifications (fallbacks; DB settings take priority)
+  ha: {
+    url: process.env.HA_URL || "",
+    token: process.env.HA_TOKEN || "",
+  },
+
   isSupabaseEnabled: () =>
     env.storageMode === "supabase" && env.supabase.isConfigured(),
 
