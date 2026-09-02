@@ -19,14 +19,16 @@ import type { Reading } from "@/lib/calc/types";
 
 /** Why a reading is incomplete (mirrors the status computation). */
 function incompleteReason(r: Reading): string {
+  // "Invoice" means billed monetary data (from the HEP bill). Consumption
+  // (VT/NT kWh) alone is just the meter read, not proof an invoice exists.
   const hasInvoice =
-    Number(r.hepVtKwh) > 0 ||
-    Number(r.hepNtKwh) > 0 ||
-    Number(r.hepGrandTotal) > 0 ||
     Number(r.hepTotalSupply) > 0 ||
-    Number(r.hepFees) > 0;
+    Number(r.hepFees) > 0 ||
+    Number(r.hepGrandTotal) > 0 ||
+    Boolean(r.sourcePdfId);
   const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
-  if (!hasInvoice && !hasUpper) return "no data yet";
+  const hasConsumption = Number(r.hepVtKwh) > 0 || Number(r.hepNtKwh) > 0;
+  if (!hasConsumption && !hasUpper && !hasInvoice) return "no data yet";
   if (!hasInvoice) return "missing invoice";
   if (!hasUpper) return "missing upper-floor";
   return "incomplete";

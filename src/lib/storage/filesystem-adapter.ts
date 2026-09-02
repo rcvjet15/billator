@@ -279,13 +279,13 @@ function computeFsStatus(r: {
   hepGrandTotal?: number;
   upperVtKwh?: number;
   upperNtKwh?: number;
+  sourcePdfId?: string;
 }): ReadingStatus {
   const hasInvoice =
-    Number(r.hepVtKwh) > 0 ||
-    Number(r.hepNtKwh) > 0 ||
     Number(r.hepGrandTotal) > 0 ||
     Number(r.hepTotalSupply) > 0 ||
-    Number(r.hepFees) > 0;
+    Number(r.hepFees) > 0 ||
+    Boolean(r.sourcePdfId);
   const hasUpper = Number(r.upperVtKwh) > 0 || Number(r.upperNtKwh) > 0;
   return hasInvoice && hasUpper ? "complete" : "pending";
 }
