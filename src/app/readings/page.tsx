@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, FileText, Pencil, Trash2 } from "lucide-react";
+import { Eye, FileText, Pencil, Trash2, Wallet } from "lucide-react";
 
 import { Button, Spinner } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -11,6 +11,7 @@ import { DataTable, type DataTableColumn, type DataTableFilter } from "@/compone
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { PaymentModal, type PaymentModalTarget } from "@/components/payments/PaymentModal";
 import { api } from "@/lib/api";
 import { useReadings } from "@/hooks/useReadings";
 import { useSettings } from "@/hooks/useSettings";
@@ -56,6 +57,7 @@ export default function ReadingsPage() {
   const [to, setTo] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResultPopup | null>(null);
+  const [payTarget, setPayTarget] = useState<PaymentModalTarget | null>(null);
 
   // Whether we can run the auto-parse sync: Gmail configured+enabled and
   // automatic parsing enabled.
@@ -167,6 +169,15 @@ export default function ReadingsPage() {
         header: "Actions",
         render: (r) => (
           <div className="flex items-center gap-1">
+            {Number(r.upperCost) > 0 && (
+              <IconButton
+                label="Pay upper share"
+                icon={<Wallet className="size-4" />}
+                onClick={() =>
+                  setPayTarget({ reading: r, amount: Number(r.upperCost) })
+                }
+              />
+            )}
             <Link href={`/readings/${r.id}`}>
               <IconButton label="Details" icon={<Eye className="size-4" />} />
             </Link>
@@ -323,6 +334,12 @@ export default function ReadingsPage() {
           </div>
         )}
       </Modal>
+
+      <PaymentModal
+        open={!!payTarget}
+        target={payTarget}
+        onClose={() => setPayTarget(null)}
+      />
     </div>
   );
 }

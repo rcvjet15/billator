@@ -11,6 +11,7 @@ import { useReadings } from "@/hooks/useReadings";
 import { api } from "@/lib/api";
 import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
 import { formatDate, formatDateWithTime, formatEur, formatKwh } from "@/utils/format";
+import { PaymentModal, type PaymentModalTarget } from "@/components/payments/PaymentModal";
 import type { Reading, TariffConfig } from "@/lib/calc/types";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -33,6 +34,7 @@ export default function ReadingDetailPage({
   const [tariff, setTariff] = useState<TariffConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [payTarget, setPayTarget] = useState<PaymentModalTarget | null>(null);
   const { remove } = useReadings();
 
   useEffect(() => {
@@ -81,6 +83,16 @@ export default function ReadingDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
+          {upperCost != null && (
+            <Button
+              variant="primary"
+              onClick={() =>
+                setPayTarget({ reading, amount: upperCost })
+              }
+            >
+              Pay upper share
+            </Button>
+          )}
           <Link href="/readings">
             <Button variant="ghost">Back</Button>
           </Link>
@@ -178,6 +190,12 @@ export default function ReadingDetailPage({
           </li>
         </ul>
       </Card>
+
+      <PaymentModal
+        open={!!payTarget}
+        target={payTarget}
+        onClose={() => setPayTarget(null)}
+      />
     </div>
   );
 }

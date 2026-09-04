@@ -4,6 +4,7 @@ const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/readings", label: "Readings" },
   { href: "/split", label: "Split" },
+  { href: "/history", label: "History" },
   { href: "/sync", label: "Sync" },
   { href: "/settings", label: "Settings" },
 ];
