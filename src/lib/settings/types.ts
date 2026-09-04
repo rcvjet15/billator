@@ -9,7 +9,33 @@ export interface AppSettings {
   semesters: SemesterCycleSettings;
   notifications: NotificationsSettings;
   homeAssistant: HomeAssistantSettings;
+  reminders: RemindersSettings;
+  payments: PaymentsSettings;
   advanced: AdvancedSettings;
+}
+
+/** Monthly "still no reading" reminder, sent via Home Assistant. */
+export interface RemindersSettings {
+  /** Master toggle for the reading reminder. */
+  enabled: boolean;
+  /** For how many days after the 1st (inclusive) to keep reminding hourly. */
+  checkDays: number;
+}
+
+/** Settlement/payment recipients and link templates (KEKS Pay, Revolut). */
+export interface PaymentsSettings {
+  /** Default recipient shown under KEKS Pay (phone/alias). */
+  keksRecipient: string;
+  /** Custom KEKS deep-link template; default kekspay://… {amount}{note}{recipient}. */
+  keksTemplate: string;
+  /** Default Revolut.me username/tag. */
+  revolutUsername: string;
+  /** Custom Revolut.me link template; default https://revolut.me/{username}/{currency}{amount}/{note}. */
+  revolutTemplate: string;
+  /** Currency code used in the Revolut link (default "eur"). */
+  revolutCurrency: string;
+  /** Default payment method preselected in the payment modal. */
+  defaultMethod: "KEKS Pay" | "Revolut";
 }
 
 /** Home Assistant outgoing notification bridge. */

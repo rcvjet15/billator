@@ -9,5 +9,10 @@ export async function register() {
     void startGmailWorker().catch((e) =>
       console.error(`[gmail-worker] failed to start: ${(e as Error).message}`),
     );
+
+    const { startReminderWorker } = await import("@/lib/reminders/reminder.worker");
+    void startReminderWorker().catch((e) =>
+      console.error(`[reminder-worker] failed to start: ${(e as Error).message}`),
+    );
   }
 }

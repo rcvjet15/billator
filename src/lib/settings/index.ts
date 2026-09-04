@@ -1,7 +1,11 @@
 import type { TariffConfig } from "@/lib/calc/types";
 import { DEFAULT_CONFIG } from "@/lib/default-config";
 import { StorageService } from "@/lib/storage-service";
-import type { AppSettings, SemesterCycleSettings } from "@/lib/settings/types";
+import type {
+  AppSettings,
+  PaymentsSettings,
+  SemesterCycleSettings,
+} from "@/lib/settings/types";
 
 const DEFAULTS: AppSettings = {
   gmail: {
@@ -42,6 +46,18 @@ const DEFAULTS: AppSettings = {
     url: "http://homeassistant.local:8123",
     token: "",
     deviceName: "phone",
+  },
+  reminders: {
+    enabled: true,
+    checkDays: 3,
+  },
+  payments: {
+    keksRecipient: "",
+    keksTemplate: "kekspay://pay?amount={amount}&note={note}&recipient={recipient}",
+    revolutUsername: "",
+    revolutTemplate: "https://revolut.me/{username}/{currency}{amount}/{note}",
+    revolutCurrency: "eur",
+    defaultMethod: "Revolut",
   },
   advanced: {
     syncLogRetention: 100,
@@ -147,6 +163,38 @@ export async function loadSettings(): Promise<AppSettings> {
       s.homeAssistant.deviceName,
   };
 
+  s.reminders = {
+    ...s.reminders,
+    enabled:
+      bool(await storage.getSetting(`${KEY_PREFIX}reminders.enabled`)) ??
+      s.reminders.enabled,
+    checkDays:
+      num(await storage.getSetting(`${KEY_PREFIX}reminders.checkDays`)) ??
+      s.reminders.checkDays,
+  };
+
+  s.payments = {
+    ...s.payments,
+    keksRecipient:
+      (await storage.getSetting(`${KEY_PREFIX}payments.keksRecipient`)) ||
+      s.payments.keksRecipient,
+    keksTemplate:
+      (await storage.getSetting(`${KEY_PREFIX}payments.keksTemplate`)) ||
+      s.payments.keksTemplate,
+    revolutUsername:
+      (await storage.getSetting(`${KEY_PREFIX}payments.revolutUsername`)) ||
+      s.payments.revolutUsername,
+    revolutTemplate:
+      (await storage.getSetting(`${KEY_PREFIX}payments.revolutTemplate`)) ||
+      s.payments.revolutTemplate,
+    revolutCurrency:
+      (await storage.getSetting(`${KEY_PREFIX}payments.revolutCurrency`)) ||
+      s.payments.revolutCurrency,
+    defaultMethod:
+      ((await storage.getSetting(`${KEY_PREFIX}payments.defaultMethod`)) as PaymentsSettings["defaultMethod"]) ||
+      s.payments.defaultMethod,
+  };
+
   s.advanced = {
     ...s.advanced,
     syncLogRetention:
@@ -226,6 +274,29 @@ export async function saveSettings(
     if (ha.token !== undefined) set(`${KEY_PREFIX}homeAssistant.token`, ha.token);
     if (ha.deviceName !== undefined)
       set(`${KEY_PREFIX}homeAssistant.deviceName`, ha.deviceName);
+  }
+
+  if (patch.reminders) {
+    const r = patch.reminders;
+    if (r.enabled !== undefined) set(`${KEY_PREFIX}reminders.enabled`, r.enabled);
+    if (r.checkDays !== undefined)
+      set(`${KEY_PREFIX}reminders.checkDays`, r.checkDays);
+  }
+
+  if (patch.payments) {
+    const p = patch.payments;
+    if (p.keksRecipient !== undefined)
+      set(`${KEY_PREFIX}payments.keksRecipient`, p.keksRecipient);
+    if (p.keksTemplate !== undefined)
+      set(`${KEY_PREFIX}payments.keksTemplate`, p.keksTemplate);
+    if (p.revolutUsername !== undefined)
+      set(`${KEY_PREFIX}payments.revolutUsername`, p.revolutUsername);
+    if (p.revolutTemplate !== undefined)
+      set(`${KEY_PREFIX}payments.revolutTemplate`, p.revolutTemplate);
+    if (p.revolutCurrency !== undefined)
+      set(`${KEY_PREFIX}payments.revolutCurrency`, p.revolutCurrency);
+    if (p.defaultMethod !== undefined)
+      set(`${KEY_PREFIX}payments.defaultMethod`, p.defaultMethod);
   }
 
   if (patch.advanced) {

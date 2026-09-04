@@ -56,6 +56,8 @@ export async function PUT(req: NextRequest) {
   const semesters = (b.semesters || {}) as Record<string, unknown>;
   const notifications = (b.notifications || {}) as Record<string, unknown>;
   const homeAssistant = (b.homeAssistant || {}) as Record<string, unknown>;
+  const reminders = (b.reminders || {}) as Record<string, unknown>;
+  const payments = (b.payments || {}) as Record<string, unknown>;
   const advanced = (b.advanced || {}) as Record<string, unknown>;
 
   try {
@@ -173,6 +175,34 @@ export async function PUT(req: NextRequest) {
     }
     if (Object.keys(haPatch).length > 0) {
       await saveSettings({ homeAssistant: haPatch } as Partial<AppSettings>);
+    }
+
+    // Reminders
+    const remPatch: Partial<AppSettings["reminders"]> = {};
+    if (typeof reminders.enabled === "boolean")
+      remPatch.enabled = reminders.enabled;
+    if (typeof reminders.checkDays === "number")
+      remPatch.checkDays = reminders.checkDays;
+    if (Object.keys(remPatch).length > 0) {
+      await saveSettings({ reminders: remPatch } as Partial<AppSettings>);
+    }
+
+    // Payments
+    const payPatch: Partial<AppSettings["payments"]> = {};
+    if (typeof payments.keksRecipient === "string")
+      payPatch.keksRecipient = payments.keksRecipient;
+    if (typeof payments.keksTemplate === "string")
+      payPatch.keksTemplate = payments.keksTemplate;
+    if (typeof payments.revolutUsername === "string")
+      payPatch.revolutUsername = payments.revolutUsername;
+    if (typeof payments.revolutTemplate === "string")
+      payPatch.revolutTemplate = payments.revolutTemplate;
+    if (typeof payments.revolutCurrency === "string")
+      payPatch.revolutCurrency = payments.revolutCurrency;
+    if (payments.defaultMethod === "KEKS Pay" || payments.defaultMethod === "Revolut")
+      payPatch.defaultMethod = payments.defaultMethod;
+    if (Object.keys(payPatch).length > 0) {
+      await saveSettings({ payments: payPatch } as Partial<AppSettings>);
     }
 
     // Re-resolve and return with masked secrets.

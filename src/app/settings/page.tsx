@@ -13,7 +13,7 @@ import { usePush } from "@/hooks/usePush";
 import { baselineForModel } from "@/lib/pricing-baseline";
 import type { AppSettings } from "@/lib/settings/types";
 
-type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "semesters" | "notifications" | "homeAssistant" | "advanced";
+type TabId = "gmail" | "hepSync" | "storage" | "tariffs" | "semesters" | "notifications" | "homeAssistant" | "reminders" | "payments" | "advanced";
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "gmail", label: "Gmail" },
@@ -23,6 +23,8 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "semesters", label: "Semesters" },
   { id: "notifications", label: "Notifications" },
   { id: "homeAssistant", label: "Home Assistant" },
+  { id: "reminders", label: "Reminders" },
+  { id: "payments", label: "Payments" },
   { id: "advanced", label: "Advanced" },
 ];
 
@@ -462,6 +464,144 @@ export default function SettingsPage() {
             )
           }
         />
+      )}
+
+      {active === "reminders" && (
+        <Card>
+          <CardHeader
+            title="Reading reminders"
+            subtitle="Remind to submit this month's meter counters, via Home Assistant."
+          />
+          <div className="flex flex-col gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={current.reminders.enabled}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  patchDraft((d) => ({
+                    ...d,
+                    reminders: { ...d.reminders, enabled: v },
+                  }));
+                }}
+              />
+              Enable monthly reading reminders
+            </label>
+            <Field
+              label="Remind for days"
+              value={String(current.reminders.checkDays)}
+              type="number"
+              min={1}
+              max={10}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  reminders: { ...d.reminders, checkDays: Number(v) },
+                }))
+              }
+              hint="From the 1st of the month, check hourly for these many days until a counter reading is entered."
+            />
+            <div>
+              <Button
+                onClick={() =>
+                  void persist(
+                    { reminders: current.reminders } as Partial<AppSettings>,
+                    "Reminder settings",
+                  )
+                }
+                loading={saving}
+              >
+                Save reminder settings
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {active === "payments" && (
+        <Card>
+          <CardHeader
+            title="Payments"
+            subtitle="Settlement details for KEKS Pay and Revolut used by the pay buttons."
+          />
+          <div className="flex flex-col gap-4">
+            <p className="text-sm font-medium text-foreground">Revolut</p>
+            <Field
+              label="Revolut.me username"
+              value={current.payments.revolutUsername}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  payments: { ...d.payments, revolutUsername: v },
+                }))
+              }
+              placeholder="myhandle"
+              hint="Used to build https://revolut.me/<username>/… links."
+            />
+            <Field
+              label="Revolut template"
+              value={current.payments.revolutTemplate}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  payments: { ...d.payments, revolutTemplate: v },
+                }))
+              }
+              placeholder="https://revolut.me/{username}/{currency}{amount}/{note}"
+            />
+            <Field
+              label="Revolut currency code"
+              value={current.payments.revolutCurrency}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  payments: { ...d.payments, revolutCurrency: v },
+                }))
+              }
+              placeholder="eur"
+              hint="e.g. eur, gbp, usd."
+            />
+
+            <p className="text-sm font-medium text-foreground">KEKS Pay</p>
+            <Field
+              label="KEKS Pay recipient"
+              value={current.payments.keksRecipient}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  payments: { ...d.payments, keksRecipient: v },
+                }))
+              }
+              placeholder="phone or @alias"
+              hint="Default recipient/alias used when building the KEKS Pay deep link."
+            />
+            <Field
+              label="KEKS Pay deep-link template"
+              value={current.payments.keksTemplate}
+              onChange={(v) =>
+                patchDraft((d) => ({
+                  ...d,
+                  payments: { ...d.payments, keksTemplate: v },
+                }))
+              }
+              placeholder="kekspay://pay?amount={amount}&note={note}&recipient={recipient}"
+            />
+
+            <div>
+              <Button
+                onClick={() =>
+                  void persist(
+                    { payments: current.payments } as Partial<AppSettings>,
+                    "Payment settings",
+                  )
+                }
+                loading={saving}
+              >
+                Save payment settings
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       {active === "advanced" && (
