@@ -80,6 +80,7 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
     initial?.sourcePdfId,
   );
   const [allReadings, setAllReadings] = useState<Reading[]>([]);
+  const [resetAck, setResetAck] = useState(false);
 
   // Load the invoice inbox (downloaded PDFs) to pick from.
   useEffect(() => {
@@ -114,12 +115,49 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
     return end - base;
   };
 
+  // True when the entered counter is below the previous one => potential reset.
+  const isReset = (end: number | undefined, prevEnd: number | undefined): boolean =>
+    end !== undefined && end !== null && prevEnd !== undefined && prevEnd !== null && end < prevEnd;
+
+  const hasAnyReset =
+    isReset(form.hepEndVt, prev?.hepEndVt) ||
+    isReset(form.hepEndNt, prev?.hepEndNt) ||
+    isReset(form.upperEndVt, prev?.upperEndVt) ||
+    isReset(form.upperEndNt, prev?.upperEndNt);
+
+  const hint = (
+    prevField: "hepEndVt" | "hepEndNt" | "upperEndVt" | "upperEndNt",
+    endField: "hepEndVt" | "hepEndNt" | "upperEndVt" | "upperEndNt",
+  ) => {
+    const prevEnd = prev?.[prevField];
+    const end = form[endField];
+    const d = liveDelta(end, prevEnd);
+    const amp = isReset(end, prevEnd);
+    return (
+      <span className="mt-1 block text-xs text-muted-foreground">
+        Prev{prev ? ` ${prev.periodStart.slice(0, 7)}` : ""}:{" "}
+        <strong>{prevEnd ?? "— (baseline)"}</strong>
+        {d !== null && (
+          <>
+            {" · "}delta:{" "}
+            <strong className={amp ? "text-amber-600" : "text-green-700"}>{d}</strong> kWh
+            {amp && " (counter reset?)"}
+          </>
+        )}
+      </span>
+    );
+  };
+
   const set = (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const setNum =
-    (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    (k: keyof ReadingInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
       setForm((f) => ({ ...f, [k]: num(e.target.value) }));
+      if (["hepEndVt", "hepEndNt", "upperEndVt", "upperEndNt"].includes(k as string)) {
+        setResetAck(false);
+      }
+    };
 
   const applyParseResult = (
     r: HepParseResult,
@@ -186,12 +224,17 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
     setRawText("");
     setPdfFile(null);
     setSourcePdfId(undefined);
+    setResetAck(false);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.periodStart || !form.periodEnd) {
       setError("Billing period dates are required.");
+      return;
+    }
+    if (hasAnyReset && !resetAck) {
+      setError("A counter seems to be lower than the previous reading (meter reset?). Tick 'Meter reset confirmed' to continue.");
       return;
     }
     setSaving(true);
@@ -304,18 +347,12 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
           <div className="flex items-center gap-2">
             <Input type="number" min="0" step="0.0001" placeholder="e.g. 8845.93" value={form.hepEndVt ?? ""} onChange={setNum("hepEndVt")} />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Prev: <strong>{prev?.hepEndVt ?? "— (baseline)"}</strong>
-            {(() => { const d = liveDelta(form.hepEndVt, prev?.hepEndVt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
-          </p>
+          {hint("hepEndVt", "hepEndVt")}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">NT end (counter)</label>
           <Input type="number" min="0" step="0.0001" placeholder="e.g. 6736.69" value={form.hepEndNt ?? ""} onChange={setNum("hepEndNt")} />
-          <p className="text-xs text-muted-foreground">
-            Prev: <strong>{prev?.hepEndNt ?? "— (baseline)"}</strong>
-            {(() => { const d = liveDelta(form.hepEndNt, prev?.hepEndNt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
-          </p>
+          {hint("hepEndNt", "hepEndNt")}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Supply (EUR)</label>
@@ -336,20 +373,28 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">VT end (counter)</label>
           <Input type="number" min="0" step="0.0001" value={form.upperEndVt ?? ""} onChange={setNum("upperEndVt")} />
-          <p className="text-xs text-muted-foreground">
-            Prev: <strong>{prev?.upperEndVt ?? "— (baseline)"}</strong>
-            {(() => { const d = liveDelta(form.upperEndVt, prev?.upperEndVt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
-          </p>
+          {hint("upperEndVt", "upperEndVt")}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">NT end (counter)</label>
           <Input type="number" min="0" step="0.0001" value={form.upperEndNt ?? ""} onChange={setNum("upperEndNt")} />
-          <p className="text-xs text-muted-foreground">
-            Prev: <strong>{prev?.upperEndNt ?? "— (baseline)"}</strong>
-            {(() => { const d = liveDelta(form.upperEndNt, prev?.upperEndNt); return d !== null ? <> · delta: <strong className="text-green-700">{d}</strong> kWh</> : null; })()}
-          </p>
+          {hint("upperEndNt", "upperEndNt")}
         </div>
       </fieldset>
+
+      {hasAnyReset && (
+        <label className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <input
+            type="checkbox"
+            checked={resetAck}
+            onChange={(e) => {
+              setResetAck(e.target.checked);
+              setError(null);
+            }}
+          />
+          A counter is lower than the previous reading — this is a meter reset/wrap. Confirm to save.
+        </label>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

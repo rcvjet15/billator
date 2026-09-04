@@ -4,6 +4,7 @@ import {
   previousReading,
   resolveChannelDelta,
   resolveReadingDeltas,
+  recomputeConsumption,
 } from "@/lib/calc/delta";
 import type { Reading } from "@/lib/calc/types";
 
@@ -106,5 +107,56 @@ describe("resolveReadingDeltas", () => {
     expect(r.consumption.hepVtKwh).toBe(0);
     expect(r.startEnd.hepStartVt).toBe(100);
     expect(r.startEnd.hepEndVt).toBe(100);
+  });
+});
+
+describe("recomputeConsumption", () => {
+  it("walks chronologically and derives each channel delta from ends", () => {
+    const readings = [
+      // Out of order on purpose to exercise date-sorting.
+      makeReading({ id: "feb", periodStart: "2026-02-01", hepEndVt: 8200, hepEndNt: 6350 }),
+      makeReading({ id: "jan", periodStart: "2026-01-01", hepEndVt: 8000, hepEndNt: 6300 }),
+    ];
+    const out = recomputeConsumption(readings);
+    // jan becomes baseline (delta 0), feb derives 8200-8000=200 / 50.
+    const jan = out.find((o) => o.reading.periodStart === "2026-01-01")!;
+    const feb = out.find((o) => o.reading.periodStart === "2026-02-01")!;
+    expect(jan.hepVt.delta).toBe(0);
+    expect(feb.hepVt.delta).toBe(200);
+    expect(feb.hepNt.delta).toBe(50);
+  });
+
+  it("flags a channel whose stored consumption diverges (revised)", () => {
+    // stored hepVtKwh=0 but recompute from ends yields 200
+    const readings = [
+      makeReading({ id: "jan", periodStart: "2026-01-01", hepEndVt: 8000, hepVtKwh: 8000 }),
+      makeReading({ id: "feb", periodStart: "2026-02-01", hepEndVt: 8200, hepVtKwh: 0 }),
+    ];
+    const feb = recomputeConsumption(readings).find(
+      (o) => o.reading.periodStart === "2026-02-01",
+    )!;
+    expect(feb.hepVt.revised).toBe(true);
+    expect(feb.consumption.hepVtKwh).toBe(200);
+  });
+
+  it("does not invent counters for rows missing cumulative ends", () => {
+    const readings = [
+      makeReading({ id: "a", periodStart: "2026-01-01", hepVtKwh: 42 }),
+    ];
+    const out = recomputeConsumption(readings);
+    expect(out[0].hepVt.missingCumulative).toBe(true);
+    expect(out[0].consumption.hepVtKwh).toBe(0); // not overwritten from a counter
+  });
+
+  it("flags a meter reset when an end drops below its predecessor", () => {
+    const readings = [
+      makeReading({ id: "jan", periodStart: "2026-01-01", hepEndVt: 8000 }),
+      makeReading({ id: "feb", periodStart: "2026-02-01", hepEndVt: 50 }),
+    ];
+    const feb = recomputeConsumption(readings).find(
+      (o) => o.reading.periodStart === "2026-02-01",
+    )!;
+    expect(feb.hepVt.reset).toBe(true);
+    expect(feb.hepVt.delta).toBe(50);
   });
 });
