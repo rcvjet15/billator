@@ -3,6 +3,8 @@ import type {
   SyncLog,
   InboxPdf,
   TariffConfig,
+  Payment,
+  PaymentInput,
 } from "@/lib/calc/types";
 import { env } from "@/lib/env";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
@@ -164,6 +166,31 @@ class StorageService {
 
   deleteInboxByMsgId(msgId: string): Promise<number> {
     return this.adapter.deleteInboxByMsgId(msgId);
+  }
+
+  // ---- payments ----------------------------------------------------------
+
+  createPayment(input: PaymentInput): Promise<Payment> {
+    return this.adapter.createPayment(input);
+  }
+
+  listPayments(): Promise<Payment[]> {
+    return this.adapter.listPayments();
+  }
+
+  getPayment(id: string): Promise<Payment | null> {
+    return this.adapter.getPayment(id);
+  }
+
+  updatePayment(
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<Payment | null> {
+    return this.adapter.updatePayment(id, patch);
+  }
+
+  deletePayment(id: string): Promise<boolean> {
+    return this.adapter.deletePayment(id);
   }
 }
 

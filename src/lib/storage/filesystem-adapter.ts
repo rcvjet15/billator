@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Reading, TariffConfig, SyncLog, InboxPdf, ReadingStatus } from "@/lib/calc/types";
+import type { Reading, TariffConfig, SyncLog, InboxPdf, ReadingStatus, Payment, PaymentInput } from "@/lib/calc/types";
 import { randomUUID } from "node:crypto";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -12,6 +12,7 @@ interface FilesystemState {
   oauth: { refreshToken?: string } | null;
   syncLogs: SyncLog[];
   inboxPdfs: InboxPdf[];
+  payments: Payment[];
 }
 
 /**
@@ -39,6 +40,7 @@ export class FilesystemAdapter extends StorageAdapter {
         oauth: parsed.oauth ?? null,
         syncLogs: parsed.syncLogs ?? [],
         inboxPdfs: parsed.inboxPdfs ?? [],
+        payments: parsed.payments ?? [],
       };
     } catch {
       return {
@@ -48,6 +50,7 @@ export class FilesystemAdapter extends StorageAdapter {
         oauth: null,
         syncLogs: [],
         inboxPdfs: [],
+        payments: [],
       };
     }
   }
@@ -268,6 +271,58 @@ export class FilesystemAdapter extends StorageAdapter {
     state.inboxPdfs = state.inboxPdfs.filter((p) => p.msgId !== msgId);
     await this.write(state);
     return before - state.inboxPdfs.length;
+  }
+
+  async createPayment(input: PaymentInput): Promise<Payment> {
+    const state = await this.read();
+    const now = new Date().toISOString();
+    const payment: Payment = {
+      id: randomUUID(),
+      billId: input.billId,
+      amount: input.amount,
+      method: input.method,
+      recipient: input.recipient,
+      note: input.note,
+      status: input.status ?? "initiated",
+      createdAt: now,
+      updatedAt: now,
+    };
+    state.payments.push(payment);
+    await this.write(state);
+    return payment;
+  }
+
+  async listPayments(): Promise<Payment[]> {
+    const state = await this.read();
+    return [...state.payments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getPayment(id: string): Promise<Payment | null> {
+    const state = await this.read();
+    return state.payments.find((p) => p.id === id) ?? null;
+  }
+
+  async updatePayment(
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<Payment | null> {
+    const state = await this.read();
+    const p = state.payments.find((x) => x.id === id);
+    if (!p) return null;
+    if (patch.status !== undefined) p.status = patch.status;
+    if (patch.note !== undefined) p.note = patch.note;
+    p.updatedAt = new Date().toISOString();
+    await this.write(state);
+    return p;
+  }
+
+  async deletePayment(id: string): Promise<boolean> {
+    const state = await this.read();
+    const before = state.payments.length;
+    state.payments = state.payments.filter((p) => p.id !== id);
+    if (state.payments.length === before) return false;
+    await this.write(state);
+    return true;
   }
 }
 

@@ -6,6 +6,8 @@ import type {
   SyncLog,
   InboxPdf,
   SyncTrigger,
+  Payment,
+  PaymentInput,
 } from "@/lib/calc/types";
 import { env } from "@/lib/env";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
@@ -449,6 +451,120 @@ export class SupabaseAdapter extends StorageAdapter {
       .select("id");
     if (error) throw new Error(error.message);
     return data?.length ?? 0;
+  }
+
+  // ---- payments ----------------------------------------------------------
+
+  async createPayment(input: PaymentInput): Promise<Payment> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.client
+      .from("payments")
+      .insert({
+        bill_id: input.billId,
+        amount: input.amount,
+        method: input.method,
+        recipient: input.recipient,
+        note: input.note ?? null,
+        status: input.status ?? "initiated",
+        created_at: now,
+        updated_at: now,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    const row = data as Record<string, unknown>;
+    return {
+      id: row.id as string,
+      billId: row.bill_id as string,
+      amount: row.amount as number,
+      method: row.method as Payment["method"],
+      recipient: row.recipient as string,
+      note: (row.note as string | null) ?? undefined,
+      status: row.status as Payment["status"],
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    };
+  }
+
+  async listPayments(): Promise<Payment[]> {
+    const { data, error } = await this.client
+      .from("payments")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        id: row.id as string,
+        billId: row.bill_id as string,
+        amount: row.amount as number,
+        method: row.method as Payment["method"],
+        recipient: row.recipient as string,
+        note: (row.note as string | null) ?? undefined,
+        status: row.status as Payment["status"],
+        createdAt: row.created_at as string,
+        updatedAt: row.updated_at as string,
+      };
+    });
+  }
+
+  async getPayment(id: string): Promise<Payment | null> {
+    const { data, error } = await this.client
+      .from("payments")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    const row = data as Record<string, unknown>;
+    return {
+      id: row.id as string,
+      billId: row.bill_id as string,
+      amount: row.amount as number,
+      method: row.method as Payment["method"],
+      recipient: row.recipient as string,
+      note: (row.note as string | null) ?? undefined,
+      status: row.status as Payment["status"],
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    };
+  }
+
+  async updatePayment(
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<Payment | null> {
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (patch.status !== undefined) updates.status = patch.status;
+    if (patch.note !== undefined) updates.note = patch.note;
+    const { data, error } = await this.client
+      .from("payments")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    const row = data as Record<string, unknown>;
+    return {
+      id: row.id as string,
+      billId: row.bill_id as string,
+      amount: row.amount as number,
+      method: row.method as Payment["method"],
+      recipient: row.recipient as string,
+      note: (row.note as string | null) ?? undefined,
+      status: row.status as Payment["status"],
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    };
+  }
+
+  async deletePayment(id: string): Promise<boolean> {
+    const { error } = await this.client.from("payments").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return true;
   }
 }
 

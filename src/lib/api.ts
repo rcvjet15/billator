@@ -1,4 +1,4 @@
-import type { Reading, ReadingInput, SplitResult, SyncLog, InboxPdf } from "@/lib/calc/types";
+import type { Reading, ReadingInput, SplitResult, SyncLog, InboxPdf, Payment, PaymentInput } from "@/lib/calc/types";
 import type { HepParseResult } from "@/lib/parse/hep";
 import type { AppSettings } from "@/lib/settings/types";
 
@@ -125,6 +125,20 @@ export const api = {
     request("/api/push/unsubscribe", { method: "POST" }),
 
   pushTest: (): Promise<{ ok: boolean }> => request("/api/push/test", { method: "POST" }),
+
+  listPayments: (): Promise<{ payments: Payment[] }> => request("/api/payments"),
+
+  createPayment: (input: PaymentInput): Promise<{ payment: Payment }> =>
+    request("/api/payments", { method: "POST", body: JSON.stringify(input) }),
+
+  updatePayment: (
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<{ payment: Payment }> =>
+    request(`/api/payments/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+
+  deletePayment: (id: string): Promise<{ ok: boolean }> =>
+    request(`/api/payments/${id}`, { method: "DELETE" }),
 };
 
 export type PushSubscriptionLike = { endpoint: string; keys?: { p256dh?: string; auth?: string }; expirationTime?: number | null };

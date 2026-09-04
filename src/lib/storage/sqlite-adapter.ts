@@ -10,6 +10,8 @@ import type {
   TariffConfig,
   SyncTrigger,
   ReadingStatus,
+  Payment,
+  PaymentInput,
 } from "@/lib/calc/types";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -63,6 +65,18 @@ type SyncLogRow = {
   trigger: SyncTrigger;
 };
 
+type PaymentRow = {
+  id: string;
+  bill_id: string;
+  amount: number;
+  method: string;
+  recipient: string;
+  note: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 // bit better-sqlite3 rows are `unknown`; use this helper to read typed objects.
 function asReadingRow(r: unknown): ReadingRow {
   return r as ReadingRow;
@@ -72,6 +86,9 @@ function asInboxPdfRow(r: unknown): InboxPdfRow {
 }
 function asSyncLogRow(r: unknown): SyncLogRow {
   return r as SyncLogRow;
+}
+function asPaymentRow(r: unknown): PaymentRow {
+  return r as PaymentRow;
 }
 
 /**
@@ -145,6 +162,18 @@ export class SqliteAdapter extends StorageAdapter {
         refresh_token TEXT,
         created_at TEXT,
         updated_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        bill_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        method TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        note TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
     `);
 
@@ -591,6 +620,78 @@ export class SqliteAdapter extends StorageAdapter {
   deleteInboxByMsgId(msgId: string): Promise<number> {
     const info = this.db.prepare("DELETE FROM inbox_pdfs WHERE msg_id = ?").run(msgId);
     return Promise.resolve(info.changes);
+  }
+
+  // ---- payments ----------------------------------------------------------
+
+  private rowToPayment(r: PaymentRow): Payment {
+    return {
+      id: r.id,
+      billId: r.bill_id,
+      amount: r.amount,
+      method: r.method as Payment["method"],
+      recipient: r.recipient,
+      note: r.note ?? undefined,
+      status: r.status as Payment["status"],
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    };
+  }
+
+  createPayment(input: PaymentInput): Promise<Payment> {
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const status = input.status ?? "initiated";
+    this.db
+      .prepare(
+        `INSERT INTO payments (id, bill_id, amount, method, recipient, note, status, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+      )
+      .run(
+        id,
+        input.billId,
+        input.amount,
+        input.method,
+        input.recipient,
+        input.note ?? null,
+        status,
+        now,
+        now,
+      );
+    return this.getPayment(id) as Promise<Payment>;
+  }
+
+  listPayments(): Promise<Payment[]> {
+    const rows = this.db
+      .prepare("SELECT * FROM payments ORDER BY created_at DESC")
+      .all();
+    return Promise.resolve(rows.map((r) => this.rowToPayment(asPaymentRow(r))));
+  }
+
+  getPayment(id: string): Promise<Payment | null> {
+    const r = this.db.prepare("SELECT * FROM payments WHERE id = ?").get(id) as unknown;
+    return Promise.resolve(r ? this.rowToPayment(asPaymentRow(r)) : null);
+  }
+
+  updatePayment(
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<Payment | null> {
+    const existing = this.getPayment(id);
+    return existing.then((record) => {
+      if (!record) return null;
+      const status = patch.status ?? record.status;
+      const note = patch.note !== undefined ? patch.note : record.note;
+      this.db
+        .prepare("UPDATE payments SET status=?, note=?, updated_at=? WHERE id=?")
+        .run(status, note ?? null, new Date().toISOString(), id);
+      return this.getPayment(id) as Promise<Payment | null>;
+    });
+  }
+
+  deletePayment(id: string): Promise<boolean> {
+    const info = this.db.prepare("DELETE FROM payments WHERE id = ?").run(id);
+    return Promise.resolve(info.changes > 0);
   }
 }
 

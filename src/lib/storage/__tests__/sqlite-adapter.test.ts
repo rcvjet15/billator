@@ -80,4 +80,27 @@ describe("SqliteAdapter", () => {
     const cfg = await adapter.getTariffConfig();
     expect(cfg?.energyRateVt).toBe(0.2);
   });
+
+  it("creates, lists and updates payments", async () => {
+    const p = await adapter.createPayment({
+      billId: "reading-1",
+      amount: 58.78,
+      method: "Revolut",
+      recipient: "myrevtag",
+      note: "electricity 2026-04",
+    });
+    expect(p.id).toBeTruthy();
+    expect(p.status).toBe("initiated");
+
+    const list = await adapter.listPayments();
+    expect(list).toHaveLength(1);
+    expect(list[0]?.amount).toBe(58.78);
+
+    const updated = await adapter.updatePayment(p.id, { status: "paid" });
+    expect(updated?.status).toBe("paid");
+
+    const deleted = await adapter.deletePayment(p.id);
+    expect(deleted).toBe(true);
+    expect(await adapter.getPayment(p.id)).toBeNull();
+  });
 });

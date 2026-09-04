@@ -157,9 +157,7 @@ export interface SplitResult {
   grandTotal: number;
 }
 
-export type SyncTrigger = "sync" | "cron" | "manual";
-
-export interface SyncLog {
+export type SyncTrigger = "sync" | "cron" | "manual";export interface SyncLog {
   id: string;
   timestamp: string;
   ok: boolean;
@@ -180,6 +178,34 @@ export interface InboxPdf {
   parsedAt?: string;
   readingId?: string;
   parsePreview?: HepParsePreview;
+}
+
+/** How a settlement is funded. */
+export type PaymentMethod = "KEKS Pay" | "Revolut";
+
+/** Lifecycle of a payment record. */
+export type PaymentStatus = "initiated" | "paid" | "failed";
+
+/** A logged settlement for a reading (the "upper share" of a split). */
+export interface Payment {
+  id: string;
+  billId: string;
+  amount: number;
+  method: PaymentMethod;
+  recipient: string;
+  note?: string;
+  status: PaymentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentInput {
+  billId: string;
+  amount: number;
+  method: PaymentMethod;
+  recipient: string;
+  note?: string;
+  status?: PaymentStatus;
 }
 
 export interface HepParsePreview {

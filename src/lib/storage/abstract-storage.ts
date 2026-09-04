@@ -3,6 +3,8 @@ import type {
   SyncLog,
   InboxPdf,
   TariffConfig,
+  Payment,
+  PaymentInput,
 } from "@/lib/calc/types";
 
 /**
@@ -98,4 +100,19 @@ export abstract class StorageAdapter {
 
   /** Delete every inbox record for a given Gmail message id (clears dedup). */
   abstract deleteInboxByMsgId(msgId: string): Promise<number>;
+
+  // ---- payments ----------------------------------------------------------
+
+  abstract createPayment(input: PaymentInput): Promise<Payment>;
+
+  abstract listPayments(): Promise<Payment[]>;
+
+  abstract getPayment(id: string): Promise<Payment | null>;
+
+  abstract updatePayment(
+    id: string,
+    patch: Partial<Pick<Payment, "status" | "note">>,
+  ): Promise<Payment | null>;
+
+  abstract deletePayment(id: string): Promise<boolean>;
 }
