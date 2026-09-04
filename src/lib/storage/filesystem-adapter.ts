@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Reading, TariffConfig, SyncLog, InboxPdf, ReadingStatus, Payment, PaymentInput } from "@/lib/calc/types";
+import type { Reading, TariffConfig, SyncLog, InboxPdf, ReadingStatus, Payment, PaymentInput, NotificationLog, NotificationLogInput } from "@/lib/calc/types";
 import { randomUUID } from "node:crypto";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -13,6 +13,7 @@ interface FilesystemState {
   syncLogs: SyncLog[];
   inboxPdfs: InboxPdf[];
   payments: Payment[];
+  notificationLogs: NotificationLog[];
 }
 
 /**
@@ -41,6 +42,7 @@ export class FilesystemAdapter extends StorageAdapter {
         syncLogs: parsed.syncLogs ?? [],
         inboxPdfs: parsed.inboxPdfs ?? [],
         payments: parsed.payments ?? [],
+        notificationLogs: parsed.notificationLogs ?? [],
       };
     } catch {
       return {
@@ -51,6 +53,7 @@ export class FilesystemAdapter extends StorageAdapter {
         syncLogs: [],
         inboxPdfs: [],
         payments: [],
+        notificationLogs: [],
       };
     }
   }
@@ -323,6 +326,36 @@ export class FilesystemAdapter extends StorageAdapter {
     if (state.payments.length === before) return false;
     await this.write(state);
     return true;
+  }
+
+  async addNotificationLog(input: NotificationLogInput): Promise<NotificationLog> {
+    const state = await this.read();
+    const log: NotificationLog = {
+      id: randomUUID(),
+      channel: input.channel,
+      ok: input.ok,
+      title: input.title,
+      message: input.message,
+      detail: input.detail,
+      createdAt: new Date().toISOString(),
+    };
+    state.notificationLogs.push(log);
+    await this.write(state);
+    return log;
+  }
+
+  async listNotificationLogs(limit = 50): Promise<NotificationLog[]> {
+    const state = await this.read();
+    const sorted = [...state.notificationLogs].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    );
+    return sorted.slice(0, limit);
+  }
+
+  async clearNotificationLogs(): Promise<void> {
+    const state = await this.read();
+    state.notificationLogs = [];
+    await this.write(state);
   }
 }
 

@@ -8,6 +8,8 @@ import type {
   SyncTrigger,
   Payment,
   PaymentInput,
+  NotificationLog,
+  NotificationLogInput,
 } from "@/lib/calc/types";
 import { env } from "@/lib/env";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
@@ -566,6 +568,51 @@ export class SupabaseAdapter extends StorageAdapter {
     if (error) throw new Error(error.message);
     return true;
   }
+
+  async addNotificationLog(input: NotificationLogInput): Promise<NotificationLog> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.client
+      .from("notifications_log")
+      .insert({
+        channel: input.channel,
+        ok: input.ok,
+        title: input.title ?? null,
+        message: input.message ?? null,
+        detail: input.detail ?? null,
+        created_at: now,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return rowToNotificationLog(data as Record<string, unknown>);
+  }
+
+  async listNotificationLogs(limit = 50): Promise<NotificationLog[]> {
+    const { data, error } = await this.client
+      .from("notifications_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => rowToNotificationLog(r as Record<string, unknown>));
+  }
+
+  async clearNotificationLogs(): Promise<void> {
+    const { error } = await this.client.from("notifications_log").delete().neq("id", "");
+    if (error) throw new Error(error.message);
+  }
+}
+
+function rowToNotificationLog(r: Record<string, unknown>): NotificationLog {
+  return {
+    id: r.id as string,
+    channel: r.channel as NotificationLog["channel"],
+    ok: !!r.ok,
+    title: (r.title as string | null) ?? undefined,
+    message: (r.message as string | null) ?? undefined,
+    detail: (r.detail as string | null) ?? undefined,
+    createdAt: r.created_at as string,
+  };
 }
 
 function rowToSyncLog(r: Record<string, unknown>): SyncLog {

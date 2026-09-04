@@ -12,6 +12,8 @@ import type {
   ReadingStatus,
   Payment,
   PaymentInput,
+  NotificationLog,
+  NotificationLogInput,
 } from "@/lib/calc/types";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
 
@@ -77,6 +79,16 @@ type PaymentRow = {
   updated_at: string;
 };
 
+type NotificationLogRow = {
+  id: string;
+  channel: string;
+  ok: number;
+  title: string | null;
+  message: string | null;
+  detail: string | null;
+  created_at: string;
+};
+
 // bit better-sqlite3 rows are `unknown`; use this helper to read typed objects.
 function asReadingRow(r: unknown): ReadingRow {
   return r as ReadingRow;
@@ -89,6 +101,9 @@ function asSyncLogRow(r: unknown): SyncLogRow {
 }
 function asPaymentRow(r: unknown): PaymentRow {
   return r as PaymentRow;
+}
+function asNotificationLogRow(r: unknown): NotificationLogRow {
+  return r as NotificationLogRow;
 }
 
 /**
@@ -174,6 +189,16 @@ export class SqliteAdapter extends StorageAdapter {
         status TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications_log (
+        id TEXT PRIMARY KEY,
+        channel TEXT NOT NULL,
+        ok INTEGER NOT NULL,
+        title TEXT,
+        message TEXT,
+        detail TEXT,
+        created_at TEXT NOT NULL
       );
     `);
 
@@ -692,6 +717,59 @@ export class SqliteAdapter extends StorageAdapter {
   deletePayment(id: string): Promise<boolean> {
     const info = this.db.prepare("DELETE FROM payments WHERE id = ?").run(id);
     return Promise.resolve(info.changes > 0);
+  }
+
+  // ---- notification logs -------------------------------------------------
+
+  private rowToNotificationLog(r: NotificationLogRow): NotificationLog {
+    return {
+      id: r.id,
+      channel: r.channel as NotificationLog["channel"],
+      ok: r.ok === 1,
+      title: r.title ?? undefined,
+      message: r.message ?? undefined,
+      detail: r.detail ?? undefined,
+      createdAt: r.created_at,
+    };
+  }
+
+  addNotificationLog(input: NotificationLogInput): Promise<NotificationLog> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO notifications_log (id, channel, ok, title, message, detail, created_at)
+         VALUES (?,?,?,?,?,?,?)`,
+      )
+      .run(
+        id,
+        input.channel,
+        input.ok ? 1 : 0,
+        input.title ?? null,
+        input.message ?? null,
+        input.detail ?? null,
+        now,
+      );
+    return this.getNotificationLog(id) as Promise<NotificationLog>;
+  }
+
+  listNotificationLogs(limit = 50): Promise<NotificationLog[]> {
+    const rows = this.db
+      .prepare("SELECT * FROM notifications_log ORDER BY created_at DESC LIMIT ?")
+      .all(limit);
+    return Promise.resolve(rows.map((r) => this.rowToNotificationLog(asNotificationLogRow(r))));
+  }
+
+  getNotificationLog(id: string): Promise<NotificationLog | null> {
+    const r = this.db
+      .prepare("SELECT * FROM notifications_log WHERE id = ?")
+      .get(id) as unknown;
+    return Promise.resolve(r ? this.rowToNotificationLog(asNotificationLogRow(r)) : null);
+  }
+
+  clearNotificationLogs(): Promise<void> {
+    this.db.prepare("DELETE FROM notifications_log").run();
+    return Promise.resolve();
   }
 }
 

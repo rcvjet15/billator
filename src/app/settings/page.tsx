@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
+import { NotificationLogCard } from "@/components/notifications/NotificationLog";
 import { useSettings } from "@/hooks/useSettings";
 import { usePush } from "@/hooks/usePush";
 import { baselineForModel } from "@/lib/pricing-baseline";
@@ -210,9 +211,32 @@ export default function SettingsPage() {
               }
             />
 
-            {/* Push notifications */}
-            <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between">
+            <div>
+              <Button
+                onClick={() =>
+                  void persist(
+                    { gmail: current.gmail } as Partial<AppSettings>,
+                    "Gmail settings",
+                  )
+                }
+                loading={saving}
+              >
+                Save Gmail settings
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {active === "notifications" && (
+        <div className="flex flex-col gap-5">
+          <Card>
+            <CardHeader
+              title="Notifications"
+              subtitle="Web Push (PWA) and delivery history for alerts sent by Billator."
+            />
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div>
                   <p className="text-sm font-medium">Push notifications</p>
                   <p className="text-xs text-muted-foreground">
@@ -232,24 +256,28 @@ export default function SettingsPage() {
                   On
                 </label>
               </div>
-              <PushSection active={current.notifications?.enabled ?? false} subscribed={current.notifications?.subscribed ?? false} />
+              <PushSection
+                active={current.notifications?.enabled ?? false}
+                subscribed={current.notifications?.subscribed ?? false}
+              />
+              <div>
+                <Button
+                  onClick={() =>
+                    void persist(
+                      { notifications: current.notifications } as Partial<AppSettings>,
+                      "Notification settings",
+                    )
+                  }
+                  loading={saving}
+                >
+                  Save notification settings
+                </Button>
+              </div>
             </div>
+          </Card>
 
-            <div>
-              <Button
-                onClick={() =>
-                  void persist(
-                    { gmail: current.gmail } as Partial<AppSettings>,
-                    "Gmail settings",
-                  )
-                }
-                loading={saving}
-              >
-                Save Gmail settings
-              </Button>
-            </div>
-          </div>
-        </Card>
+          <NotificationLogCard />
+        </div>
       )}
 
       {active === "homeAssistant" && (

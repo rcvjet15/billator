@@ -2,6 +2,7 @@ import webpush from "web-push";
 
 import { env } from "@/lib/env";
 import { StorageService } from "@/lib/storage-service";
+import { logNotificationDelivery } from "@/lib/push/log";
 
 export interface PushSubscriptionLike {
   endpoint: string;
@@ -52,9 +53,23 @@ export async function clearSubscription(): Promise<void> {
 
 /** Send a push notification to the stored subscription, if any. Best-effort. */
 export async function sendPush(notification: PushNotification): Promise<boolean> {
-  if (!env.vapid.publicKey || !env.vapid.privateKey) return false;
+  const log = (ok: boolean, detail?: string) =>
+    logNotificationDelivery("web_push", {
+      ok,
+      title: notification.title,
+      message: notification.body,
+      detail,
+    });
+
+  if (!env.vapid.publicKey || !env.vapid.privateKey) {
+    log(false, "vapid keys not configured");
+    return false;
+  }
   const sub = await getStoredSubscription();
-  if (!sub || !sub.endpoint) return false;
+  if (!sub || !sub.endpoint) {
+    log(false, "no push subscription stored");
+    return false;
+  }
 
   try {
     await client().sendNotification(
@@ -65,14 +80,16 @@ export async function sendPush(notification: PushNotification): Promise<boolean>
         url: notification.url || "/",
       }),
     );
+    log(true);
     return true;
   } catch (err) {
-    console.error("[push] failed to send notification:", (err as Error).message);
-    // A 404/410 means the subscription is no longer valid; drop it.
+    const detail = `failed to send notification: ${(err as Error).message}`;
+    console.error("[push]", detail);
     const code = (err as { statusCode?: number }).statusCode;
     if (code === 404 || code === 410) {
       await clearSubscription().catch(() => undefined);
     }
+    log(false, detail);
     return false;
   }
 }

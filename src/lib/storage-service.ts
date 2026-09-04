@@ -5,6 +5,8 @@ import type {
   TariffConfig,
   Payment,
   PaymentInput,
+  NotificationLog,
+  NotificationLogInput,
 } from "@/lib/calc/types";
 import { env } from "@/lib/env";
 import { StorageAdapter } from "@/lib/storage/abstract-storage";
@@ -191,6 +193,18 @@ class StorageService {
 
   deletePayment(id: string): Promise<boolean> {
     return this.adapter.deletePayment(id);
+  }
+
+  addNotificationLog(input: NotificationLogInput): Promise<NotificationLog> {
+    return this.adapter.addNotificationLog(input);
+  }
+
+  listNotificationLogs(limit?: number): Promise<NotificationLog[]> {
+    return this.adapter.listNotificationLogs(limit);
+  }
+
+  clearNotificationLogs(): Promise<void> {
+    return this.adapter.clearNotificationLogs();
   }
 }
 

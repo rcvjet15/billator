@@ -208,6 +208,23 @@ export interface PaymentInput {
   status?: PaymentStatus;
 }
 
+/** Outbound delivery channel for a notification. */
+export type NotificationChannel = "home_assistant" | "web_push";
+
+/** A logged record of an outbound notification attempt. */
+export interface NotificationLog {
+  id: string;
+  channel: NotificationChannel;
+  ok: boolean;
+  title?: string;
+  message?: string;
+  /** e.g. HA device / push subscription, or error text. */
+  detail?: string;
+  createdAt: string;
+}
+
+export type NotificationLogInput = Omit<NotificationLog, "id" | "createdAt">;
+
 export interface HepParsePreview {
   periodStart?: string;
   periodEnd?: string;

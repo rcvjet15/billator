@@ -1,4 +1,4 @@
-import type { Reading, ReadingInput, SplitResult, SyncLog, InboxPdf, Payment, PaymentInput } from "@/lib/calc/types";
+import type { Reading, ReadingInput, SplitResult, SyncLog, InboxPdf, Payment, PaymentInput, NotificationLog } from "@/lib/calc/types";
 import type { HepParseResult } from "@/lib/parse/hep";
 import type { AppSettings } from "@/lib/settings/types";
 
@@ -139,6 +139,12 @@ export const api = {
 
   deletePayment: (id: string): Promise<{ ok: boolean }> =>
     request(`/api/payments/${id}`, { method: "DELETE" }),
+
+  listNotificationLogs: (): Promise<{ logs: NotificationLog[] }> =>
+    request("/api/notifications/log"),
+
+  clearNotificationLogs: (): Promise<{ ok: boolean }> =>
+    request("/api/notifications/log", { method: "DELETE" }),
 };
 
 export type PushSubscriptionLike = { endpoint: string; keys?: { p256dh?: string; auth?: string }; expirationTime?: number | null };

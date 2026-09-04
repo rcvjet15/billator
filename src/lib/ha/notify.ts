@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { loadSettings } from "@/lib/settings";
+import { logNotificationDelivery } from "@/lib/push/log";
 
 /**
  * Home Assistant notification bridge.
@@ -62,12 +63,27 @@ async function resolveHaConfig(): Promise<{
  */
 export async function sendHaNotification(notification: HaNotification | string): Promise<boolean> {
   const cfg = await resolveHaConfig();
-  if (!cfg) return false;
-  if (!cfg.enabled) return false;
-
   const message =
     typeof notification === "string" ? notification : notification.message;
   const title = typeof notification === "string" ? undefined : notification.title;
+
+  const log = (ok: boolean, detail?: string) =>
+    logNotificationDelivery("home_assistant", {
+      ok,
+      title,
+      message,
+      detail,
+    });
+
+  if (!cfg) {
+    log(false, "home assistant not configured (url/token missing)");
+    return false;
+  }
+  if (!cfg.enabled) {
+    log(false, "home assistant disabled");
+    return false;
+  }
+
   const data = typeof notification === "string" ? undefined : notification.data;
 
   const body: Record<string, unknown> = {
@@ -77,6 +93,7 @@ export async function sendHaNotification(notification: HaNotification | string):
   };
 
   let anySent = false;
+  let lastErr: string | undefined;
   for (const name of cfg.deviceNames) {
     const device = name.replace(/[^a-zA-Z0-9_]/g, "_");
     const service = `notify/mobile_app_${device}`;
@@ -94,14 +111,15 @@ export async function sendHaNotification(notification: HaNotification | string):
         anySent = true;
       } else {
         const detail = await res.text().catch(() => "");
-        console.error(
-          `[ha-notify] Home Assistant responded ${res.status} for ${service}: ${detail}`,
-        );
+        lastErr = `HA responded ${res.status} for ${service}: ${detail}`;
+        console.error(`[ha-notify] ${lastErr}`);
       }
     } catch (err) {
-      console.error(`[ha-notify] Failed to send to ${service}: ${(err as Error).message}`);
+      lastErr = `Failed to send to ${service}: ${(err as Error).message}`;
+      console.error(`[ha-notify] ${lastErr}`);
     }
   }
+  log(anySent, anySent ? undefined : lastErr);
   return anySent;
 }
 

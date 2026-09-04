@@ -103,4 +103,27 @@ describe("SqliteAdapter", () => {
     expect(deleted).toBe(true);
     expect(await adapter.getPayment(p.id)).toBeNull();
   });
+
+  it("logs and lists notification deliveries", async () => {
+    await adapter.addNotificationLog({
+      channel: "home_assistant",
+      ok: true,
+      title: "New HEP bill synced",
+      message: "Billed total: €193.60",
+    });
+    await adapter.addNotificationLog({
+      channel: "web_push",
+      ok: false,
+      title: "x",
+      detail: "no subscription",
+    });
+    const logs = await adapter.listNotificationLogs();
+    expect(logs).toHaveLength(2);
+    expect(
+      logs.some((l) => l.channel === "home_assistant" && l.ok),
+    ).toBe(true);
+    expect(logs.some((l) => l.channel === "web_push" && !l.ok && l.detail)).toBe(true);
+    await adapter.clearNotificationLogs();
+    expect(await adapter.listNotificationLogs()).toHaveLength(0);
+  });
 });

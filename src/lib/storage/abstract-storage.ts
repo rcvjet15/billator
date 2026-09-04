@@ -5,6 +5,8 @@ import type {
   TariffConfig,
   Payment,
   PaymentInput,
+  NotificationLog,
+  NotificationLogInput,
 } from "@/lib/calc/types";
 
 /**
@@ -115,4 +117,12 @@ export abstract class StorageAdapter {
   ): Promise<Payment | null>;
 
   abstract deletePayment(id: string): Promise<boolean>;
+
+  // ---- notification logs -------------------------------------------------
+
+  abstract addNotificationLog(input: NotificationLogInput): Promise<NotificationLog>;
+
+  abstract listNotificationLogs(limit?: number): Promise<NotificationLog[]>;
+
+  abstract clearNotificationLogs(): Promise<void>;
 }
