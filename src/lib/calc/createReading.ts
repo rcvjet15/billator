@@ -11,12 +11,15 @@ export interface CreateReadingFromPreviewResult {
 
 /**
  * Create a reading record from a parsed invoice preview, if one does not
- * already exist for the same period. Uses the chronological predecessor to
- * derive monthly consumption from the cumulative meter ends.
+ * already exist for the same period.
  *
- * Used by the inbox "create reading" action and, when auto-parsing is enabled,
- * by the Gmail sync so a newly downloaded parsed invoice is turned straight
- * into a reading.
+ * The PDF's own "Potrošak" (printed monthly consumption: hepVtKwh/hepNtKwh) is
+ * treated as authoritative whenever it is present; the invoiced cumulative
+ * Stanje od/od (start/end) are stored for reference but are NOT allowed to
+ * overwrite that consumption. The cumulative-delta path is only used when a
+ * channel has no parsed consumption yet (e.g. a meter the user later enters by
+ * odometer). This avoids corrupting a reading when the parser mis-captures a
+ * counter read (the PDF shows the consumption, which is what billing needs).
  */
 export async function createReadingFromPreview(
   storage: StorageLike,
@@ -30,8 +33,6 @@ export async function createReadingFromPreview(
   const input: ReadingInput = {
     periodStart: preview.periodStart,
     periodEnd: preview.periodEnd,
-    hepVtKwh: preview.hepVtKwh,
-    hepNtKwh: preview.hepNtKwh,
     hepTotalSupply: preview.hepTotalSupply,
     hepFees: preview.hepFees,
     hepGrandTotal: preview.hepGrandTotal,
@@ -44,23 +45,36 @@ export async function createReadingFromPreview(
     origin: "parsed",
   };
 
+  const hasParsedConsumption =
+    preview.hepVtKwh !== undefined && preview.hepNtKwh !== undefined;
+  if (hasParsedConsumption) {
+    // Trust the printed consumption.
+    input.hepVtKwh = preview.hepVtKwh;
+    input.hepNtKwh = preview.hepNtKwh;
+  }
+
   const all = await storage.listReadings();
   const dup = all.find((r) => r.periodStart === input.periodStart);
   if (dup) {
     return { reading: null, reason: "duplicate" };
   }
 
-  const prev = previousReading(all, input.periodStart);
-  const { consumption, startEnd } = resolveReadingDeltas(input, prev);
+  // Only derive from cumulative counters for channels lacking parsed figures.
+  let createInput: ReadingInput = { ...input };
+  if (!hasParsedConsumption) {
+    const prev = previousReading(all, input.periodStart);
+    const { consumption, startEnd } = resolveReadingDeltas(input, prev);
+    createInput = {
+      ...input,
+      ...startEnd,
+      hepVtKwh: consumption.hepVtKwh,
+      hepNtKwh: consumption.hepNtKwh,
+      upperVtKwh: consumption.upperVtKwh,
+      upperNtKwh: consumption.upperNtKwh,
+    };
+  }
 
-  const reading = await storage.createReading({
-    ...input,
-    ...startEnd,
-    hepVtKwh: consumption.hepVtKwh,
-    hepNtKwh: consumption.hepNtKwh,
-    upperVtKwh: consumption.upperVtKwh,
-    upperNtKwh: consumption.upperNtKwh,
-  });
+  const reading = await storage.createReading(createInput);
 
   await storage
     .updateInboxPdf(source.id, {
