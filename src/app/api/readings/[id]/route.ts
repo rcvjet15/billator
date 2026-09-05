@@ -88,13 +88,18 @@ export async function PUT(
     };
     const { consumption, startEnd } = resolveReadingDeltas(mergedCumulative, prev);
 
+    // If the user edited a channel's monthly consumption directly (not via
+    // cumulative counters), honour that value. Only derive-from-counter the
+    // channels that were NOT provided so manual kWh (e.g. upper floor entered
+    // as consumption) is never zeroed by cumulative baseline math.
+    const had = (k: keyof Reading) => body[k] !== undefined;
     const reading = await storage.updateReading(id, {
       ...partial,
       ...startEnd,
-      hepVtKwh: consumption.hepVtKwh,
-      hepNtKwh: consumption.hepNtKwh,
-      upperVtKwh: consumption.upperVtKwh,
-      upperNtKwh: consumption.upperNtKwh,
+      hepVtKwh: had("hepVtKwh") ? (partial.hepVtKwh ?? 0) : consumption.hepVtKwh,
+      hepNtKwh: had("hepNtKwh") ? (partial.hepNtKwh ?? 0) : consumption.hepNtKwh,
+      upperVtKwh: had("upperVtKwh") ? (partial.upperVtKwh ?? 0) : consumption.upperVtKwh,
+      upperNtKwh: had("upperNtKwh") ? (partial.upperNtKwh ?? 0) : consumption.upperNtKwh,
     });
     if (!reading) {
       return NextResponse.json({ error: "Reading not found." }, { status: 404 });

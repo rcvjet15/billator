@@ -369,16 +369,17 @@ export function ReadingForm({ onSubmit, initial, onUpdate }: ReadingFormProps) {
       </fieldset>
 
       <fieldset className="grid grid-cols-2 gap-4 rounded-lg border border-border p-4">
-        <legend className="px-2 text-sm font-medium">Upper floor monitor — cumulative</legend>
+        <legend className="px-2 text-sm font-medium">Upper floor monitor — consumption this period</legend>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium">VT end (counter)</label>
-          <Input type="number" min="0" step="0.0001" value={form.upperEndVt ?? ""} onChange={setNum("upperEndVt")} />
-          {hint("upperEndVt", "upperEndVt")}
+          <label className="text-sm font-medium">Upper VT (kWh)</label>
+          <Input type="number" min="0" step="0.0001" value={form.upperVtKwh && form.upperVtKwh > 0 ? form.upperVtKwh : ""} onChange={setNum("upperVtKwh")} placeholder="e.g. 120" />
+          <span className="mt-1 block text-xs text-muted-foreground">
+            kWh used on the upper floor this billing period (not a meter counter).
+          </span>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium">NT end (counter)</label>
-          <Input type="number" min="0" step="0.0001" value={form.upperEndNt ?? ""} onChange={setNum("upperEndNt")} />
-          {hint("upperEndNt", "upperEndNt")}
+          <label className="text-sm font-medium">Upper NT (kWh)</label>
+          <Input type="number" min="0" step="0.0001" value={form.upperNtKwh && form.upperNtKwh > 0 ? form.upperNtKwh : ""} onChange={setNum("upperNtKwh")} placeholder="e.g. 90" />
         </div>
       </fieldset>
 

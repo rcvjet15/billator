@@ -64,13 +64,15 @@ async function applyDeltas(
 ): Promise<ReadingInput> {
   const prev = previousReading(allReadings, input.periodStart);
   const { consumption, startEnd } = resolveReadingDeltas(input, prev);
+  // Honour any monthly kWh explicitly provided by the form (e.g. upper floor
+  // entered as consumption); only derive-from-counter when it was absent.
   return {
     ...input,
     ...startEnd,
-    hepVtKwh: consumption.hepVtKwh,
-    hepNtKwh: consumption.hepNtKwh,
-    upperVtKwh: consumption.upperVtKwh,
-    upperNtKwh: consumption.upperNtKwh,
+    hepVtKwh: input.hepVtKwh !== undefined ? input.hepVtKwh : consumption.hepVtKwh,
+    hepNtKwh: input.hepNtKwh !== undefined ? input.hepNtKwh : consumption.hepNtKwh,
+    upperVtKwh: input.upperVtKwh !== undefined ? input.upperVtKwh : consumption.upperVtKwh,
+    upperNtKwh: input.upperNtKwh !== undefined ? input.upperNtKwh : consumption.upperNtKwh,
   };
 }
 
