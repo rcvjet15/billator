@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { previousReading, resolveReadingDeltas } from "@/lib/calc/delta";
+import { createReadingFromInboxPdf } from "@/lib/calc/createReading";
 import { StorageService } from "@/lib/storage-service";
 
 type Params = { id: string };
@@ -22,59 +22,26 @@ export async function POST(
     if (!pdf) {
       return NextResponse.json({ error: "Inbox item not found." }, { status: 404 });
     }
-
-    const preview = pdf.parsePreview;
-    if (!preview || !preview.periodStart || !preview.periodEnd) {
+    if (!pdf.parsePreview) {
       return NextResponse.json(
         { error: "This PDF has not been parsed, so a reading can't be created from it." },
         { status: 400 },
       );
     }
 
-    const input = {
-      periodStart: preview.periodStart,
-      periodEnd: preview.periodEnd,
-      hepVtKwh: preview.hepVtKwh,
-      hepNtKwh: preview.hepNtKwh,
-      hepTotalSupply: preview.hepTotalSupply,
-      hepFees: preview.hepFees,
-      hepGrandTotal: preview.hepGrandTotal,
-      hepStartVt: preview.hepStartVt,
-      hepEndVt: preview.hepEndVt,
-      hepStartNt: preview.hepStartNt,
-      hepEndNt: preview.hepEndNt,
-      sourcePdfId: pdf.id,
-      sourcePdfName: pdf.filename,
-      origin: "parsed" as const,
-    };
-
-    // Resolve deltas against the chronological predecessor.
-    const all = await storage.listReadings();
-    const dup = all.find((r) => r.periodStart === input.periodStart);
-    if (dup) {
+    const { reading, reason } = await createReadingFromInboxPdf(storage, pdf);
+    if (reason === "duplicate") {
       return NextResponse.json(
-        { error: `A reading already exists for ${input.periodStart}. Edit it instead (${dup.id}).` },
+        { error: `A reading already exists for ${pdf.parsePreview.periodStart}. Edit it instead.` },
         { status: 409 },
       );
     }
-    const prev = previousReading(all, input.periodStart);
-    const { consumption, startEnd } = resolveReadingDeltas(input, prev);
-
-    const reading = await storage.createReading({
-      ...input,
-      ...startEnd,
-      hepVtKwh: consumption.hepVtKwh,
-      hepNtKwh: consumption.hepNtKwh,
-      upperVtKwh: consumption.upperVtKwh,
-      upperNtKwh: consumption.upperNtKwh,
-    });
-
-    // Link the reading to the inbox item so it's known to be used.
-    await storage.updateInboxPdf(id, {
-      readingId: reading.id,
-      parsedAt: reading.createdAt,
-    });
-
+    if (reason === "no-preview" || !reading) {
+      return NextResponse.json(
+        { error: "Could not create a reading from this preview." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({ reading }, { status: 201 });
   } catch (err) {
     return NextResponse.json(

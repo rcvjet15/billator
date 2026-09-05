@@ -6,8 +6,7 @@ import { getGmailClient, type GmailClient } from "@/lib/gmail/client";
 import { parseHepPdfBuffer } from "@/lib/parse/hep";
 import { sendPush } from "@/lib/push/send";
 import { sendHaNotification } from "@/lib/ha/notify";
-import { estimateReadingUpperCost } from "@/lib/calc/readingCost";
-import { getTariffConfig } from "@/lib/config-service";
+import { createReadingFromPreview } from "@/lib/calc/createReading";
 import { loadSettings } from "@/lib/settings";
 import { StorageService } from "@/lib/storage-service";
 
@@ -141,6 +140,7 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
     let parsedGrandTotal: number | undefined;
     let parsedPeriodStart: string | undefined;
     let parsedPeriodEnd: string | undefined;
+    let autoCreatedCount = 0;
 
     for (const msg of messages) {
       const messageId = msg.id!;
@@ -228,8 +228,18 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
           parsePreview,
           parsedAt,
         };
-        await storage.addInboxPdf(pdf);
+        const pdfRec = await storage.addInboxPdf(pdf);
         downloadedCount += 1;
+
+        // If auto-parse produced a preview, immediately turn it into a reading
+        // (skipped when the period already has one).
+        if (parsePreview && pdfRec) {
+          const { reason } = await createReadingFromPreview(storage, parsePreview, {
+            id: pdfRec.id,
+            filename,
+          });
+          if (reason === "created") autoCreatedCount += 1;
+        }
       }
 
       // Remember the newest matched email for the result popup.
@@ -253,51 +263,81 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
         .catch(() => undefined);
     }
 
-    const status =
-      downloadedCount > 0
-        ? `Downloaded ${downloadedCount} attachment(s)`
-        : skippedCount > 0
-          ? `All matched emails already pulled (${skippedCount} skipped)`
-          : "No invoice attachments found";
+    // Backfill: turn any parsed inbox PDF that has no reading yet into a
+    // reading. This covers invoices pulled on an earlier sync (auto-parse was
+    // on) whose "Create reading" step was never run.
+    if (settings.gmail.autoParse) {
+      const existingReadings = await storage.listReadings();
+      const existingPeriods = new Set(existingReadings.map((r) => r.periodStart));
+      const inboxPdfs = await storage.listInboxPdfs();
+      for (const p of inboxPdfs) {
+        if (!p.parsePreview || p.readingId) continue;
+        if (!p.parsePreview.periodStart) continue;
+        if (existingPeriods.has(p.parsePreview.periodStart)) {
+          // Already have a reading for that period; nothing to create.
+          continue;
+        }
+        const { reason } = await createReadingFromPreview(storage, p.parsePreview, {
+          id: p.id,
+          filename: p.filename,
+        });
+        if (reason === "created") {
+          autoCreatedCount += 1;
+          existingPeriods.add(p.parsePreview.periodStart);
+        }
+      }
+    }
+
+    const createdNote =
+      autoCreatedCount > 0 ? ` · created ${autoCreatedCount} reading(s)` : "";
+    let status: string;
+    if (downloadedCount > 0 && autoCreatedCount > 0) {
+      status = `Downloaded ${downloadedCount} attachment(s)${createdNote}`;
+    } else if (downloadedCount > 0) {
+      status = `Downloaded ${downloadedCount} attachment(s)`;
+    } else if (autoCreatedCount > 0) {
+      status = `Created ${autoCreatedCount} reading(s) from invoices in the inbox`;
+    } else if (skippedCount > 0) {
+      status = `All matched emails already pulled (${skippedCount} skipped)`;
+    } else {
+      status = "No invoice attachments found";
+    }
+    const madeProgress = downloadedCount > 0 || autoCreatedCount > 0;
     const log = await logSync(storage, {
       ok: true,
-      found: downloadedCount > 0,
+      found: madeProgress,
       status,
       trigger,
     });
 
-    // Push a notification when a genuinely new invoice was downloaded.
-    if (downloadedCount > 0) {
-      const grandTotal = parsedGrandTotal;
-      const upperSplit = await estimateUpperSplitForParsed(
-        storage,
-        parsedPeriodStart,
-        parsedPeriodEnd,
-        parsedVtKwh,
-        parsedNtKwh,
-      );
-
-      const body = buildBillMessage({ grandTotal, upperSplit });
+    // Notify when a new invoice produced a reading (or a new bill was synced).
+    if (madeProgress) {
+      const body = buildBillMessage({ grandTotal: parsedGrandTotal });
+      const title =
+        autoCreatedCount > 0
+          ? "New HEP bill parsed into a reading"
+          : "New HEP bill synced";
+      const period =
+        parsedPeriodStart && parsedPeriodEnd
+          ? `${parsedPeriodStart} → ${parsedPeriodEnd}`
+          : undefined;
 
       void sendPush({
-        title: "New HEP bill synced",
+        title,
         body: lastEmail?.subject || `Downloaded ${downloadedCount} attachment(s)`,
         url: "/readings",
       }).catch(() => undefined);
 
-      // Autonomous server-side notification through Home Assistant.
       void sendHaNotification({
-        title: "New HEP bill synced",
+        title,
         message: body,
-        data: parsedPeriodStart
-          ? { period: `${parsedPeriodStart} → ${parsedPeriodEnd ?? parsedPeriodStart}` }
-          : undefined,
+        data: period ? { period } : undefined,
       }).catch(() => undefined);
     }
 
     return {
       ok: true,
-      found: downloadedCount > 0,
+      found: madeProgress,
       files,
       messageId: log.messageId,
       status: log.status,
@@ -318,61 +358,6 @@ export async function runSync(trigger: SyncTrigger = "sync"): Promise<SyncOutcom
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-/**
- * Estimate the upper-floor split amount for a freshly parsed HEP bill.
- *
- * Looks up an existing stored reading that overlaps the parsed period to fetch
- * the upper-floor VT/NT (those come from a separate submeter / manual import and
- * can't be derived from the HEP PDF). Falls back to the parsed HEP values alone
- * (which yields a 0-upper reading) when no matching reading is found yet.
- */
-async function estimateUpperSplitForParsed(
-  storage: ReturnType<typeof StorageService["getInstance"]>,
-  periodStart: string | undefined,
-  periodEnd: string | undefined,
-  hepVtKwh: number,
-  hepNtKwh: number,
-): Promise<number | undefined> {
-  if (!periodStart || !periodEnd) return undefined;
-  try {
-    const readings = await storage.listReadings();
-    const match =
-      readings.find(
-        (r) =>
-          r.periodStart === periodStart && r.periodEnd === periodEnd,
-      ) ??
-      readings.find(
-        (r) =>
-          (!periodStart || r.periodStart <= periodEnd) &&
-          (!periodEnd || r.periodEnd >= periodStart),
-      );
-
-    const reading =
-      match ??
-      ({
-        id: "parsed-preview",
-        periodStart,
-        periodEnd,
-        hepVtKwh,
-        hepNtKwh,
-        hepTotalSupply: 0,
-        hepFees: 0,
-        hepGrandTotal: 0,
-        upperVtKwh: 0,
-        upperNtKwh: 0,
-        createdAt: "",
-        updatedAt: "",
-      } as import("@/lib/calc/types").Reading);
-    if (!reading) return undefined;
-
-    const tariff = await getTariffConfig();
-    return estimateReadingUpperCost(reading, tariff);
-  } catch (err) {
-    console.error(`[ha-notify] Could not estimate upper split: ${(err as Error).message}`);
-    return undefined;
-  }
 }
 
 /** Compose a human-friendly summary message from available bill figures. */
